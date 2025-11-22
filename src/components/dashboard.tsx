@@ -22,7 +22,8 @@ import {
   Settings,
   Loader,
   ArrowRight,
-  LineChart
+  LineChart,
+  CaseSensitive
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
@@ -404,6 +405,71 @@ const SimilarityView = ({ videoFile }: { videoFile: File | null }) => {
 };
 
 
+const CaseLinkingView = ({ cases, onLinkCases, linkingResults, isLinking }: { cases: any[], onLinkCases: () => void, linkingResults: any, isLinking: boolean }) => (
+  <div className="h-full flex flex-col animate-in slide-in-from-right duration-300">
+    <div className="bg-card p-6 rounded-xl border border-border mb-6 flex items-center justify-between">
+      <div>
+        <h2 className="text-xl font-bold text-foreground mb-1">Case Linking Analysis</h2>
+        <p className="text-muted-foreground text-sm">Find connections between the current case and past incidents.</p>
+      </div>
+      <button 
+        onClick={onLinkCases}
+        disabled={isLinking}
+        className="px-6 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-secondary text-white rounded-lg font-bold transition-all flex items-center"
+      >
+        {isLinking ? <Loader className="animate-spin mr-2" /> : <Network className="mr-2" />}
+        Analyze Links
+      </button>
+    </div>
+
+    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-hidden">
+      <div className="bg-card/50 rounded-xl border border-border overflow-y-auto">
+        <h3 className="font-semibold text-foreground p-4 border-b border-border sticky top-0 bg-card/90 backdrop-blur z-10">Case Files</h3>
+        <div className="p-4 space-y-4">
+          {cases.map((c, i) => (
+            <div key={i} className={`p-4 rounded-lg border ${i === 0 ? 'border-primary/50 bg-primary/10' : 'border-border bg-secondary'}`}>
+              <h4 className={`font-bold ${i===0 ? 'text-primary' : 'text-foreground'} flex items-center`}>{i === 0 ? <Activity className="mr-2"/> : <FileText className="mr-2"/>} {c.caseId}</h4>
+              <p className="text-sm text-muted-foreground mt-1 mb-2">{c.description}</p>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="font-semibold text-foreground">People:</span>
+                {c.relevantPeople.map((p:string, pi:number) => <span key={pi} className="bg-background px-2 py-1 rounded">{p}</span>)}
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs mt-2">
+                <span className="font-semibold text-foreground">Objects:</span>
+                {c.relevantObjects.map((o:string, oi:number) => <span key={oi} className="bg-background px-2 py-1 rounded">{o}</span>)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      <div className="bg-card/50 rounded-xl border border-border overflow-y-auto">
+        <h3 className="font-semibold text-foreground p-4 border-b border-border sticky top-0 bg-card/90 backdrop-blur z-10">Linking Analysis Results</h3>
+        <div className="p-4">
+          {isLinking ? (
+            <div className="p-8 text-center text-muted-foreground">
+              <Loader className="animate-spin w-8 h-8 text-yellow-500 mx-auto mb-4" />
+              <p>Gemini is analyzing connections...</p>
+            </div>
+          ) : linkingResults.links && linkingResults.links.length > 0 ? (
+            linkingResults.links.map((link: any, idx: number) => (
+              <div key={idx} className="mb-4 bg-secondary p-4 rounded-lg border border-border">
+                <p className="text-foreground"><strong className="text-yellow-400">Link Found:</strong> Connects to <strong className="font-mono">{link.linkedCaseId}</strong>.</p>
+                <p className="text-muted-foreground text-sm mt-1"><strong>Reason:</strong> {link.reason}</p>
+              </div>
+            ))
+          ) : (
+             <div className="p-8 text-center text-muted-foreground text-sm">
+                No links found or analysis not run.
+              </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+
 const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   
@@ -414,6 +480,15 @@ const App = () => {
 
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
+
+  // Dummy data for Case Linking
+  const [cases, setCases] = useState([
+      { caseId: 'CASE-041', description: 'Suspicious individual loitering near ATM.', relevantObjects: ['Backpack', 'Hoodie'], relevantPeople: ['Person A'], videoSegments: ['cam1_00-30.mp4'] },
+      { caseId: 'CASE-032', description: 'Previous report of a stolen wallet.', relevantObjects: ['Backpack', 'Sunglasses'], relevantPeople: ['Person B'], videoSegments: ['cam3_10-00.mp4'] },
+      { caseId: 'CASE-015', description: 'Individual matching suspect description seen a week ago.', relevantObjects: ['Cap'], relevantPeople: ['Person A'], videoSegments: ['cam2_15-30.mp4'] }
+  ]);
+  const [isLinking, setIsLinking] = useState(false);
+  const [linkingResults, setLinkingResults] = useState<any>({});
   
   const handleFileChange = (index: number, file: File) => {
     const newFiles = [...files];
@@ -444,6 +519,24 @@ const App = () => {
     setProcessingStatus('ready');
   };
 
+  const handleLinkCases = async () => {
+    setIsLinking(true);
+    setLinkingResults({});
+    try {
+        const result = await linkCases({
+            newCase: cases[0],
+            pastCases: cases.slice(1)
+        });
+        setLinkingResults(result);
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Linking Failed', description: e.message });
+    } finally {
+        setIsLinking(false);
+    }
+  }
+
+  const { toast } = useToast();
+
   const renderContent = () => {
       switch (activeTab) {
         case 'dashboard': 
@@ -466,6 +559,8 @@ const App = () => {
           />;
         case 'similarity': 
           return <SimilarityView videoFile={videoFile} />;
+        case 'casetracking':
+          return <CaseLinkingView cases={cases} onLinkCases={handleLinkCases} linkingResults={linkingResults} isLinking={isLinking} />;
         default: 
           return <DashboardView onUpload={handleVideoProcess} processingStatus={processingStatus} onStartSearch={() => setActiveTab('semantic')} files={files} onFileChange={handleFileChange} onRemoveFile={handleRemoveFile}/>;
       }
@@ -480,7 +575,7 @@ const App = () => {
             <ShieldAlert size={20} className="text-primary-foreground" />
           </div>
           <div>
-            <h1 className="font-bold text-foreground leading-none">CCTV Forensic</h1>
+            <h1 className="font-bold text-foreground leading-none">InsightWatch</h1>
             <span className="text-[10px] text-primary tracking-wider">GEMINI POWERED</span>
           </div>
         </div>
@@ -489,6 +584,7 @@ const App = () => {
           <SidebarItem icon={Activity} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
           <SidebarItem icon={Search} label="Semantic Search" active={activeTab === 'semantic'} onClick={() => setActiveTab('semantic')} />
           <SidebarItem icon={User} label="Similarity Search" active={activeTab === 'similarity'} onClick={() => setActiveTab('similarity')} />
+          <SidebarItem icon={CaseSensitive} label="Case Management" active={activeTab === 'casetracking'} onClick={() => setActiveTab('casetracking')} />
         </nav>
 
         <div className="mt-auto space-y-4">
