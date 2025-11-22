@@ -1,3 +1,46 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "cctv-thumbnail-1",
+      "description": "A placeholder for a CCTV video thumbnail.",
+      "imageUrl": "https://images.unsplash.com/photo-1585206031650-9e9a7c87dcfe?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxzZWN1cml0eSUyMGNhbWVyYXxlbnwwfHx8fDE3NjM3MjA2OTd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "security camera"
+    },
+    {
+      "id": "cctv-thumbnail-2",
+      "description": "Another placeholder for a CCTV video thumbnail.",
+      "imageUrl": "https://images.unsplash.com/photo-1562274889-e5b8b9198426?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxzdHJlZXQlMjB2aWV3fGVufDB8fHx8MTc2Mzc2ODg1Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "street view"
+    },
+    {
+      "id": "suspect-1",
+      "description": "A placeholder image for a suspect.",
+      "imageUrl": "https://images.unsplash.com/photo-1540569014015-19a7be504e3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjM3MTEyNTR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "suspect-2",
+      "description": "Another placeholder image for a suspect.",
+      "imageUrl": "https://images.unsplash.com/photo-1592903204858-e288251ad9cc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtYW4lMjB3YWxraW5nfGVufDB8fHx8MTc2MzczMTIwNHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "man walking"
+    },
+    {
+      "id": "event-1",
+      "description": "Timeline event placeholder image",
+      "imageUrl": "https://images.unsplash.com/photo-1549654747-1fe362f45d7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8Y2l0eSUyMHN0cmVldHxlbnwwfHx8fDE3NjM3NDQwOTJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "city street"
+    },
+    {
+      "id": "event-2",
+      "description": "Timeline event placeholder image",
+      "imageUrl": "https://images.unsplash.com/photo-1543465077-db45d34b88a5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxwYXJraW5nJTIwbG90fGVufDB8fHx8MTc2MzczMjU1M3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "parking lot"
+    },
+    {
+      "id": "event-3",
+      "description": "Timeline event placeholder image",
+      "imageUrl": "https://images.unsplash.com/photo-1757458891061-f81e29dfb189?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxzdG9yZSUyMGVudHJhbmNlfGVufDB8fHx8MTc2MzgwNzM0Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "store entrance"
+    }
+  ]
 }
