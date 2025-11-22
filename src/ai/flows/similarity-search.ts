@@ -25,17 +25,34 @@ const SimilaritySearchInputSchema = z.object({
 export type SimilaritySearchInput = z.infer<typeof SimilaritySearchInputSchema>;
 
 const SimilaritySearchOutputSchema = z.object({
-  results: z.array(
-    z.object({
-      videoName: z.string().describe('The name of the video where the match was found.'),
-      timestamp: z.string().describe('The timestamp in the video where the match was found.'),
-      confidence: z.number().describe('The confidence score of the match (0-1).'),
-    })
-  ).describe('An array of search results, each containing the video name, timestamp, and confidence score.'),
+  results: z
+    .array(
+      z.object({
+        videoName: z
+          .string()
+          .describe('The name of the video where the match was found.'),
+        timestamp: z
+          .string()
+          .describe('The timestamp in the video where the match was found.'),
+        confidence: z
+          .number()
+          .describe('The confidence score of the match (0-1).'),
+        matchImage: z
+          .string()
+          .describe(
+            'The captured video frame where the match was found, as a data URI.'
+          ),
+      })
+    )
+    .describe(
+      'An array of search results, each containing the video name, timestamp, confidence score, and a screenshot of the match.'
+    ),
 });
 export type SimilaritySearchOutput = z.infer<typeof SimilaritySearchOutputSchema>;
 
-export async function similaritySearch(input: SimilaritySearchInput): Promise<SimilaritySearchOutput> {
+export async function similaritySearch(
+  input: SimilaritySearchInput
+): Promise<SimilaritySearchOutput> {
   return similaritySearchFlow(input);
 }
 
@@ -45,7 +62,7 @@ const similaritySearchPrompt = ai.definePrompt({
   output: {schema: SimilaritySearchOutputSchema},
   prompt: `You are an AI assistant designed to identify similar people or objects in a collection of CCTV videos based on a reference image.
 
-Given a reference image and a video, analyze the video footage and return all instances where the person or object in the reference image appears. Consider clothing, body shape, and other visual cues to improve accuracy, especially when the face is unclear.
+Given a reference image and a video, analyze the video footage and return all instances where the person or object in the reference image appears. For each match, you MUST return a screenshot of the frame where the match occurred. Consider clothing, body shape, and other visual cues to improve accuracy, especially when the face is unclear.
 
 Reference Image: {{media url=referenceImage}}
 Video: {{media url=videoDataUri}}

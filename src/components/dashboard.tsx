@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
 import { semanticVideoSearch } from '@/ai/flows/semantic-video-search';
 import { similaritySearch } from '@/ai/flows/similarity-search';
+import { linkCases } from '@/ai/flows/case-linking';
 
 // --- Components ---
 
@@ -373,6 +374,9 @@ const SimilarityView = ({ videoFile }: { videoFile: File | null }) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {matches.map((match, idx) => (
                             <div key={idx} className="bg-secondary rounded-lg overflow-hidden border border-border group">
+                                <div className="aspect-video bg-background overflow-hidden">
+                                   <img src={match.matchImage} alt={`Match at ${match.timestamp}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                </div>
                                 <div className="p-3">
                                     <div className="flex justify-between items-center mb-1">
                                         <span className="text-foreground text-sm font-medium">Found at {match.timestamp}</span>
