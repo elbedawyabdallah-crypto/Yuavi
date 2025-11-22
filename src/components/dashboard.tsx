@@ -26,7 +26,8 @@ import {
   CaseSensitive,
   PlusCircle,
   Trash2,
-  Edit
+  Edit,
+  ArrowLeft
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
@@ -597,6 +598,7 @@ const CaseLinkingView = ({ cases, onLinkCases, linkingResults, isLinking, onUpda
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [tabHistory, setTabHistory] = useState<string[]>(['dashboard']);
   
   const [files, setFiles] = useState<(File | null)[]>(Array(5).fill(null));
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
@@ -720,12 +722,12 @@ const App = () => {
       title: "Case Created",
       description: `New case "${newCase.caseId}" has been added.`,
     });
-    setActiveTab('casetracking');
+    handleTabChange('casetracking');
   };
 
   const handleNewCase = () => {
     resetDashboard();
-    setActiveTab('dashboard');
+    handleTabChange('dashboard');
   };
 
   const handleStartInvestigation = () => {
@@ -744,7 +746,7 @@ const App = () => {
       title: "Case Created",
       description: `New case "${newCase.caseName}" has been added.`,
     });
-    setActiveTab('semantic');
+    handleTabChange('semantic');
   };
 
   const handleUpdateCase = (caseId: string, updates: any) => {
@@ -757,6 +759,23 @@ const App = () => {
       title: "Case Removed",
       description: `Case "${caseId}" has been deleted.`,
     });
+  };
+
+  const handleTabChange = (newTab: string) => {
+    if (newTab !== activeTab) {
+      setTabHistory(prev => [...prev, newTab]);
+      setActiveTab(newTab);
+    }
+  };
+
+  const handleGoBack = () => {
+    if (tabHistory.length > 1) {
+      const newHistory = [...tabHistory];
+      newHistory.pop();
+      const previousTab = newHistory[newHistory.length - 1];
+      setTabHistory(newHistory);
+      setActiveTab(previousTab);
+    }
   };
 
 
@@ -775,10 +794,10 @@ const App = () => {
         </div>
 
         <nav className="flex-1">
-          <SidebarItem icon={Activity} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-          <SidebarItem icon={Search} label="Semantic Search" active={activeTab === 'semantic'} onClick={() => setActiveTab('semantic')} />
-          <SidebarItem icon={User} label="Similarity Search" active={activeTab === 'similarity'} onClick={() => setActiveTab('similarity')} />
-          <SidebarItem icon={CaseSensitive} label="Case Management" active={activeTab === 'casetracking'} onClick={() => setActiveTab('casetracking')} />
+          <SidebarItem icon={Activity} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => handleTabChange('dashboard')} />
+          <SidebarItem icon={Search} label="Semantic Search" active={activeTab === 'semantic'} onClick={() => handleTabChange('semantic')} />
+          <SidebarItem icon={User} label="Similarity Search" active={activeTab === 'similarity'} onClick={() => handleTabChange('similarity')} />
+          <SidebarItem icon={CaseSensitive} label="Case Management" active={activeTab === 'casetracking'} onClick={() => handleTabChange('casetracking')} />
         </nav>
 
         <div className="mt-auto space-y-4">
@@ -796,7 +815,14 @@ const App = () => {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 border-b border-border bg-card/50 backdrop-blur flex items-center justify-between px-6">
-          <h2 className="text-lg font-semibold text-foreground capitalize">{activeTab.replace('casetracking', 'Case Management')}</h2>
+          <div className="flex items-center gap-4">
+            {tabHistory.length > 1 && (
+              <button onClick={handleGoBack} className="text-muted-foreground hover:text-foreground">
+                <ArrowLeft size={20} />
+              </button>
+            )}
+            <h2 className="text-lg font-semibold text-foreground capitalize">{activeTab.replace('casetracking', 'Case Management')}</h2>
+          </div>
           {videoFile && (
              <span className="text-xs text-green-400 bg-green-400/10 px-2 py-1 rounded border border-green-400/20">
                Video Loaded: {videoFile.name}
@@ -845,5 +871,3 @@ const App = () => {
 };
 
 export default App;
-
-    
