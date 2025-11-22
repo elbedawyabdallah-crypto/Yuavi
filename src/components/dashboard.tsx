@@ -23,13 +23,15 @@ import {
   Loader,
   ArrowRight,
   LineChart,
-  CaseSensitive
+  CaseSensitive,
+  PlusCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
 import { semanticVideoSearch } from '@/ai/flows/semantic-video-search';
 import { similaritySearch } from '@/ai/flows/similarity-search';
 import { linkCases } from '@/ai/flows/case-linking';
+import { format } from 'date-fns';
 
 // --- Components ---
 
@@ -187,7 +189,7 @@ const DashboardView = ({ onUpload, processingStatus, onStartSearch, files, onFil
   </div>
 );
 
-const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSearchResults, videoSrc, videoFile }: { isSearching: boolean, setIsSearching: (isSearching: boolean) => void, searchResults: any[], setSearchResults: (results: any[]) => void, videoSrc: string | null, videoFile: File | null }) => {
+const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSearchResults, videoSrc, videoFile, onAddCase }: { isSearching: boolean, setIsSearching: (isSearching: boolean) => void, searchResults: any[], setSearchResults: (results: any[]) => void, videoSrc: string | null, videoFile: File | null, onAddCase: (event: any) => void }) => {
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const { toast } = useToast();
@@ -224,7 +226,7 @@ const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSea
   });
 
   return (
-    <div className="h-full flex flex-col animate-in slide-in-from-right duration-300">
+    <div className="h-full flex flex-col">
       <div className="bg-card p-6 rounded-xl border border-border mb-6">
         <h2 className="text-xl font-bold text-foreground mb-2">Video Semantic Search</h2>
         <p className="text-muted-foreground text-sm mb-4">Ask Gemini to find complex events in your uploaded video.</p>
@@ -269,12 +271,17 @@ const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSea
                </div>
             ) : searchResults.length > 0 ? (
               searchResults.map((res, idx) => (
-                <div key={idx} onClick={() => handleEventClick(res.startTime)} className="bg-secondary p-3 rounded-lg border border-border hover:border-primary cursor-pointer group transition-all">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-primary font-mono text-sm font-bold">{new Date(res.startTime * 1000).toISOString().substr(14, 5)} - {new Date(res.endTime * 1000).toISOString().substr(14, 5)}</span>
-                    <span className="text-[10px] bg-background px-1.5 py-0.5 rounded text-muted-foreground">Event</span>
+                <div key={idx} className="bg-secondary p-3 rounded-lg border border-border hover:border-primary group transition-all">
+                  <div onClick={() => handleEventClick(res.startTime)} className="cursor-pointer">
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-primary font-mono text-sm font-bold">{new Date(res.startTime * 1000).toISOString().substr(14, 5)} - {new Date(res.endTime * 1000).toISOString().substr(14, 5)}</span>
+                      <span className="text-[10px] bg-background px-1.5 py-0.5 rounded text-muted-foreground">Event</span>
+                    </div>
+                    <p className="text-sm text-foreground mb-2">{res.description}</p>
                   </div>
-                  <p className="text-sm text-foreground mb-2">{res.description}</p>
+                   <button onClick={() => onAddCase(res)} className="w-full text-xs mt-2 p-1.5 bg-primary/10 text-primary rounded-md hover:bg-primary/20 transition-colors flex items-center justify-center gap-2">
+                     <PlusCircle size={14} /> Add to Cases
+                   </button>
                 </div>
               ))
             ) : (
@@ -339,7 +346,7 @@ const SimilarityView = ({ videoFile }: { videoFile: File | null }) => {
     };
 
     return (
-        <div className="flex flex-col h-full animate-in zoom-in-95 duration-300">
+        <div className="flex flex-col h-full">
             <div className="flex gap-6 h-full">
                 <div className="w-1/3 flex flex-col gap-4">
                     <div className="bg-card border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center p-8 relative overflow-hidden aspect-square">
@@ -405,8 +412,8 @@ const SimilarityView = ({ videoFile }: { videoFile: File | null }) => {
 };
 
 
-const CaseLinkingView = ({ cases, onLinkCases, linkingResults, isLinking }: { cases: any[], onLinkCases: () => void, linkingResults: any, isLinking: boolean }) => (
-  <div className="h-full flex flex-col animate-in slide-in-from-right duration-300">
+const CaseLinkingView = ({ cases, onLinkCases, linkingResults, isLinking, onUpdateCase }: { cases: any[], onLinkCases: () => void, linkingResults: any, isLinking: boolean, onUpdateCase: (caseId: string, updates: any) => void }) => (
+  <div className="h-full flex flex-col">
     <div className="bg-card p-6 rounded-xl border border-border mb-6 flex items-center justify-between">
       <div>
         <h2 className="text-xl font-bold text-foreground mb-1">Case Linking Analysis</h2>
@@ -414,7 +421,7 @@ const CaseLinkingView = ({ cases, onLinkCases, linkingResults, isLinking }: { ca
       </div>
       <button 
         onClick={onLinkCases}
-        disabled={isLinking}
+        disabled={isLinking || cases.length < 2}
         className="px-6 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-secondary text-white rounded-lg font-bold transition-all flex items-center"
       >
         {isLinking ? <Loader className="animate-spin mr-2" /> : <Network className="mr-2" />}
@@ -427,19 +434,49 @@ const CaseLinkingView = ({ cases, onLinkCases, linkingResults, isLinking }: { ca
         <h3 className="font-semibold text-foreground p-4 border-b border-border sticky top-0 bg-card/90 backdrop-blur z-10">Case Files</h3>
         <div className="p-4 space-y-4">
           {cases.map((c, i) => (
-            <div key={i} className={`p-4 rounded-lg border ${i === 0 ? 'border-primary/50 bg-primary/10' : 'border-border bg-secondary'}`}>
-              <h4 className={`font-bold ${i===0 ? 'text-primary' : 'text-foreground'} flex items-center`}>{i === 0 ? <Activity className="mr-2"/> : <FileText className="mr-2"/>} {c.caseId}</h4>
-              <p className="text-sm text-muted-foreground mt-1 mb-2">{c.description}</p>
-              <div className="flex flex-wrap gap-2 text-xs">
-                <span className="font-semibold text-foreground">People:</span>
+            <div key={c.caseId} className={`p-4 rounded-lg border ${i === 0 ? 'border-primary/50 bg-primary/10' : 'border-border bg-secondary'}`}>
+              <div className="flex justify-between items-center">
+                <input 
+                   defaultValue={c.caseName}
+                   onBlur={(e) => onUpdateCase(c.caseId, { caseName: e.target.value })}
+                   className={`font-bold text-lg bg-transparent border-0 p-0 focus:ring-0 focus:outline-none w-full ${i===0 ? 'text-primary' : 'text-foreground'}`}
+                />
+              </div>
+
+              <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Clock size={12}/>
+                    <span>{format(new Date(c.timestamp), 'PPpp')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <MapPin size={12}/>
+                     <input 
+                       defaultValue={c.place}
+                       onBlur={(e) => onUpdateCase(c.caseId, { place: e.target.value })}
+                       className="bg-transparent border-0 p-0 focus:ring-0 focus:outline-none w-full text-xs text-muted-foreground"
+                    />
+                  </div>
+              </div>
+              
+              <p className="text-sm text-muted-foreground mt-2 mb-2">{c.description}</p>
+              
+              <div className="flex flex-wrap gap-2 text-xs mt-3">
+                <span className="font-semibold text-foreground text-xs">People:</span>
                 {c.relevantPeople.map((p:string, pi:number) => <span key={pi} className="bg-background px-2 py-1 rounded">{p}</span>)}
+                 {c.relevantPeople.length === 0 && <span className="text-muted-foreground italic">None</span>}
               </div>
               <div className="flex flex-wrap gap-2 text-xs mt-2">
-                <span className="font-semibold text-foreground">Objects:</span>
+                <span className="font-semibold text-foreground text-xs">Objects:</span>
                 {c.relevantObjects.map((o:string, oi:number) => <span key={oi} className="bg-background px-2 py-1 rounded">{o}</span>)}
+                {c.relevantObjects.length === 0 && <span className="text-muted-foreground italic">None</span>}
               </div>
             </div>
           ))}
+           {cases.length === 0 && (
+             <div className="p-8 text-center text-muted-foreground text-sm">
+                No cases created. Add events from the Semantic Search tab to start.
+              </div>
+            )}
         </div>
       </div>
       
@@ -481,21 +518,21 @@ const App = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
-  // Dummy data for Case Linking
-  const [cases, setCases] = useState([
-      { caseId: 'CASE-041', description: 'Suspicious individual loitering near ATM.', relevantObjects: ['Backpack', 'Hoodie'], relevantPeople: ['Person A'], videoSegments: ['cam1_00-30.mp4'] },
-      { caseId: 'CASE-032', description: 'Previous report of a stolen wallet.', relevantObjects: ['Backpack', 'Sunglasses'], relevantPeople: ['Person B'], videoSegments: ['cam3_10-00.mp4'] },
-      { caseId: 'CASE-015', description: 'Individual matching suspect description seen a week ago.', relevantObjects: ['Cap'], relevantPeople: ['Person A'], videoSegments: ['cam2_15-30.mp4'] }
+  // Case Linking Data
+  const [cases, setCases] = useState<any[]>([
+      { caseId: 'CASE-002', caseName: 'Stolen Wallet Incident', timestamp: '2023-10-26T10:00:00Z', place: 'Main St. & 2nd Ave', description: 'Previous report of a stolen wallet.', relevantObjects: ['Backpack', 'Sunglasses'], relevantPeople: ['Person B'], videoSegments: ['cam3_10-00.mp4'] },
+      { caseId: 'CASE-001', caseName: 'Prior Sighting of Individual', timestamp: '2023-10-19T14:30:00Z', place: 'West End Plaza', description: 'Individual matching suspect description seen a week ago.', relevantObjects: ['Cap'], relevantPeople: ['Person A'], videoSegments: ['cam2_15-30.mp4'] }
   ]);
   const [isLinking, setIsLinking] = useState(false);
   const [linkingResults, setLinkingResults] = useState<any>({});
   
+  const { toast } = useToast();
+
   const handleFileChange = (index: number, file: File) => {
     const newFiles = [...files];
     newFiles[index] = file;
     setFiles(newFiles);
 
-    // For simplicity, we'll only process and display the first video with a file.
     if(index === 0 && file) {
       handleVideoProcess(file);
     }
@@ -520,6 +557,10 @@ const App = () => {
   };
 
   const handleLinkCases = async () => {
+    if (cases.length < 2) {
+      toast({ variant: 'destructive', title: 'Not Enough Cases', description: 'Need at least two cases to run linking analysis.' });
+      return;
+    }
     setIsLinking(true);
     setLinkingResults({});
     try {
@@ -528,6 +569,11 @@ const App = () => {
             pastCases: cases.slice(1)
         });
         setLinkingResults(result);
+        if (result.links?.length > 0) {
+            toast({ title: 'Links Found!', description: `Found ${result.links.length} potential connection(s).` });
+        } else {
+             toast({ title: 'No Links Found', description: 'No connections identified between the newest case and past incidents.' });
+        }
     } catch (e: any) {
         toast({ variant: 'destructive', title: 'Linking Failed', description: e.message });
     } finally {
@@ -535,7 +581,29 @@ const App = () => {
     }
   }
 
-  const { toast } = useToast();
+  const handleAddCase = (event: any) => {
+    const newCase = {
+      caseId: `CASE-${String(Date.now()).slice(-4)}`,
+      caseName: 'New Case from Event',
+      timestamp: new Date().toISOString(),
+      place: 'Location Unknown',
+      description: event.description,
+      relevantObjects: [], // Can be enhanced later
+      relevantPeople: [], // Can be enhanced later
+      videoSegments: [videoFile?.name || 'unknown_video']
+    };
+    setCases(prevCases => [newCase, ...prevCases]);
+    toast({
+      title: "Case Created",
+      description: `New case "${newCase.caseId}" has been added.`,
+    });
+    setActiveTab('casetracking');
+  };
+
+  const handleUpdateCase = (caseId: string, updates: any) => {
+    setCases(prevCases => prevCases.map(c => c.caseId === caseId ? { ...c, ...updates } : c));
+  };
+
 
   return (
     <div className="flex h-screen bg-background text-foreground font-sans selection:bg-primary/30">
@@ -600,13 +668,14 @@ const App = () => {
               setSearchResults={setSearchResults}
               videoSrc={videoSrc}
               videoFile={videoFile}
+              onAddCase={handleAddCase}
             />
           </div>
           <div style={{ display: activeTab === 'similarity' ? 'block' : 'none' }}>
             <SimilarityView videoFile={videoFile} />
           </div>
           <div style={{ display: activeTab === 'casetracking' ? 'block' : 'none' }}>
-            <CaseLinkingView cases={cases} onLinkCases={handleLinkCases} linkingResults={linkingResults} isLinking={isLinking} />
+            <CaseLinkingView cases={cases} onLinkCases={handleLinkCases} linkingResults={linkingResults} isLinking={isLinking} onUpdateCase={handleUpdateCase} />
           </div>
         </main>
       </div>

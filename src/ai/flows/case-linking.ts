@@ -13,6 +13,9 @@ import {z} from 'genkit';
 
 const CaseDetailsSchema = z.object({
   caseId: z.string().describe('The unique identifier for the case.'),
+  caseName: z.string().describe('The name or title of the case.'),
+  timestamp: z.string().describe('The ISO 8601 timestamp when the case was created or occurred.'),
+  place: z.string().describe('The location where the case events took place.'),
   description: z.string().describe('A description of the case details.'),
   relevantObjects: z.array(z.string()).describe('List of relevant objects detected in the case.'),
   relevantPeople: z.array(z.string()).describe('List of relevant people detected in the case.'),
@@ -51,6 +54,9 @@ const prompt = ai.definePrompt({
 
   New Case Details:
   Case ID: {{{newCase.caseId}}}
+  Case Name: {{{newCase.caseName}}}
+  Timestamp: {{{newCase.timestamp}}}
+  Location: {{{newCase.place}}}
   Description: {{{newCase.description}}}
   Relevant Objects: {{#each newCase.relevantObjects}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
   Relevant People: {{#each newCase.relevantPeople}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
@@ -59,6 +65,9 @@ const prompt = ai.definePrompt({
   Past Cases:
   {{#each pastCases}}
   Case ID: {{{caseId}}}
+  Case Name: {{{caseName}}}
+  Timestamp: {{{timestamp}}}
+  Location: {{{place}}}
   Description: {{{description}}}
   Relevant Objects: {{#each relevantObjects}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
   Relevant People: {{#each relevantPeople}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
