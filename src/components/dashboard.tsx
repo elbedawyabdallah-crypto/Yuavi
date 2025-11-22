@@ -35,6 +35,21 @@ import { format } from 'date-fns';
 
 // --- Components ---
 
+const ClientOnlyTimestamp = ({ timestamp }: { timestamp: string }) => {
+  const [formattedDate, setFormattedDate] = useState('');
+
+  useEffect(() => {
+    setFormattedDate(format(new Date(timestamp), 'PPpp'));
+  }, [timestamp]);
+
+  if (!formattedDate) {
+    return null; // Or a loading skeleton
+  }
+
+  return <span>{formattedDate}</span>;
+};
+
+
 const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: React.ElementType, label: string, active: boolean, onClick: () => void }) => (
   <button 
     onClick={onClick}
@@ -446,7 +461,7 @@ const CaseLinkingView = ({ cases, onLinkCases, linkingResults, isLinking, onUpda
               <div className="text-xs text-muted-foreground mt-2 space-y-1">
                   <div className="flex items-center gap-2">
                     <Clock size={12}/>
-                    <span>{format(new Date(c.timestamp), 'PPpp')}</span>
+                    <ClientOnlyTimestamp timestamp={c.timestamp} />
                   </div>
                   <div className="flex items-center gap-2">
                     <MapPin size={12}/>
