@@ -41,7 +41,12 @@ const ClientOnlyTimestamp = ({ timestamp }: { timestamp: string }) => {
   const [formattedDate, setFormattedDate] = useState('');
 
   useEffect(() => {
-    setFormattedDate(format(new Date(timestamp), 'PPpp'));
+    try {
+      setFormattedDate(format(new Date(timestamp), 'PPpp'));
+    } catch (e) {
+      console.error("Invalid timestamp for formatting:", timestamp);
+      setFormattedDate("Invalid Date");
+    }
   }, [timestamp]);
 
   if (!formattedDate) {
@@ -134,8 +139,19 @@ const VideoPlayer = ({ videoSrc, isPlaying, setIsPlaying, currentTime }: { video
   );
 };
 
-const DashboardView = ({ processingStatus, onStartSearch, files, onFileChange, onRemoveFile, onAddCamera }: { processingStatus: string, onStartSearch: () => void, files: (File | null)[], onFileChange: (index: number, file: File) => void, onRemoveFile: (index: number) => void, onAddCamera: () => void }) => (
+const DashboardView = ({ processingStatus, onStartSearch, files, onFileChange, onRemoveFile, onAddCamera, onNewCase }: { processingStatus: string, onStartSearch: () => void, files: (File | null)[], onFileChange: (index: number, file: File) => void, onRemoveFile: (index: number) => void, onAddCamera: () => void, onNewCase: () => void }) => (
   <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="flex justify-between items-center">
+      <div>
+        <h2 className="text-2xl font-bold">Dashboard</h2>
+        <p className="text-muted-foreground">Upload and manage your CCTV footage.</p>
+      </div>
+      <button onClick={onNewCase} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-semibold">
+        <PlusCircle size={16} />
+        New Case
+      </button>
+    </div>
+
     <div className="bg-card border border-border border-dashed rounded-xl p-8 text-center hover:bg-secondary/50 transition-all min-h-[300px] flex flex-col items-center justify-center">
       
       {processingStatus === 'idle' && (
@@ -498,7 +514,7 @@ const CaseLinkingView = ({ cases, onLinkCases, linkingResults, isLinking, onUpda
           ))}
            {cases.length === 0 && (
              <div className="p-8 text-center text-muted-foreground text-sm">
-                No cases created. Add events from the Semantic Search tab to start.
+                No cases created. Add events from the Semantic Search tab or create a new one to start.
               </div>
             )}
         </div>
@@ -543,14 +559,33 @@ const App = () => {
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
   // Case Linking Data
-  const [cases, setCases] = useState<any[]>([
-      { caseId: 'CASE-002', caseName: 'Stolen Wallet Incident', timestamp: '2023-10-26T10:00:00Z', place: 'Main St. & 2nd Ave', description: 'Previous report of a stolen wallet.', relevantObjects: ['Backpack', 'Sunglasses'], relevantPeople: ['Person B'], videoSegments: ['cam3_10-00.mp4'] },
-      { caseId: 'CASE-001', caseName: 'Prior Sighting of Individual', timestamp: '2023-10-19T14:30:00Z', place: 'West End Plaza', description: 'Individual matching suspect description seen a week ago.', relevantObjects: ['Cap'], relevantPeople: ['Person A'], videoSegments: ['cam2_15-30.mp4'] }
-  ]);
+  const [cases, setCases] = useState<any[]>([]);
   const [isLinking, setIsLinking] = useState(false);
   const [linkingResults, setLinkingResults] = useState<any>({});
   
   const { toast } = useToast();
+
+  // Load cases from localStorage on mount
+  useEffect(() => {
+    const savedCases = localStorage.getItem('insightwatch-cases');
+    if (savedCases) {
+      setCases(JSON.parse(savedCases));
+    } else {
+      // Default cases if nothing is saved
+      setCases([
+        { caseId: 'CASE-002', caseName: 'Stolen Wallet Incident', timestamp: '2023-10-26T10:00:00Z', place: 'Main St. & 2nd Ave', description: 'Previous report of a stolen wallet.', relevantObjects: ['Backpack', 'Sunglasses'], relevantPeople: ['Person B'], videoSegments: ['cam3_10-00.mp4'] },
+        { caseId: 'CASE-001', caseName: 'Prior Sighting of Individual', timestamp: '2023-10-19T14:30:00Z', place: 'West End Plaza', description: 'Individual matching suspect description seen a week ago.', relevantObjects: ['Cap'], relevantPeople: ['Person A'], videoSegments: ['cam2_15-30.mp4'] }
+      ]);
+    }
+  }, []);
+
+  // Save cases to localStorage whenever they change
+  useEffect(() => {
+    if (cases.length > 0) {
+      localStorage.setItem('insightwatch-cases', JSON.stringify(cases));
+    }
+  }, [cases]);
+
 
   const handleAddCamera = () => {
     setFiles(prevFiles => [...prevFiles, null]);
@@ -628,6 +663,25 @@ const App = () => {
     setActiveTab('casetracking');
   };
 
+  const handleNewCase = () => {
+    const newCase = {
+      caseId: `CASE-${String(Date.now()).slice(-4)}`,
+      caseName: 'Untitled Case',
+      timestamp: new Date().toISOString(),
+      place: 'Unknown Location',
+      description: 'Newly created case.',
+      relevantObjects: [],
+      relevantPeople: [],
+      videoSegments: []
+    };
+    setCases(prevCases => [newCase, ...prevCases]);
+    toast({
+      title: "New Case Added",
+      description: `Case "${newCase.caseId}" is ready for details.`,
+    });
+    setActiveTab('casetracking');
+  };
+
   const handleUpdateCase = (caseId: string, updates: any) => {
     setCases(prevCases => prevCases.map(c => c.caseId === caseId ? { ...c, ...updates } : c));
   };
@@ -677,7 +731,7 @@ const App = () => {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 border-b border-border bg-card/50 backdrop-blur flex items-center justify-between px-6">
-          <h2 className="text-lg font-semibold text-foreground capitalize">{activeTab.replace('-', ' ')}</h2>
+          <h2 className="text-lg font-semibold text-foreground capitalize">{activeTab.replace('casetracking', 'Case Management')}</h2>
           {videoFile && (
              <span className="text-xs text-green-400 bg-green-400/10 px-2 py-1 rounded border border-green-400/20">
                Video Loaded: {videoFile.name}
@@ -694,6 +748,7 @@ const App = () => {
               onFileChange={handleFileChange}
               onRemoveFile={handleRemoveFile}
               onAddCamera={handleAddCamera}
+              onNewCase={handleNewCase}
             />
           </div>
           <div style={{ display: activeTab === 'semantic' ? 'block' : 'none' }}>
