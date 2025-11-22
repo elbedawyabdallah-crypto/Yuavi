@@ -64,53 +64,10 @@ import type {
 import Timeline from './timeline';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-
-// Mock AI functions with simulated delay
-const mockSemanticVideoSearch = async (): Promise<SemanticSearchResult[]> => {
-  return new Promise(resolve => {
-    setTimeout(() => {
-      resolve([
-        { startTime: 120, endTime: 125, description: 'A person wearing a red jacket walks past Camera 1.' },
-        { startTime: 345, endTime: 350, description: 'The person in the red jacket is seen near the north exit.' },
-      ]);
-    }, 2000);
-  });
-};
-
-const mockSimilaritySearch = async (): Promise<SimilarityResult[]> => {
-    const eventImages = PlaceHolderImages.filter(img => img.id.startsWith('event-'));
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve([
-          { videoName: 'Camera 3 - Lobby', timestamp: '2024-07-28 14:32:10', confidence: 0.92, imageUrl: eventImages[0].imageUrl, imageHint: eventImages[0].imageHint },
-          { videoName: 'Camera 1 - Entrance', timestamp: '2024-07-28 14:28:45', confidence: 0.88, imageUrl: eventImages[1].imageUrl, imageHint: eventImages[1].imageHint },
-          { videoName: 'Camera 5 - Parking Lot', timestamp: '2024-07-28 14:25:12', confidence: 0.85, imageUrl: eventImages[2].imageUrl, imageHint: eventImages[2].imageHint },
-        ].sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()));
-      }, 2500);
-    });
-};
-
-const mockLinkCases = async (newCase: CaseDetails, pastCases: CaseDetails[]): Promise<CaseLink[]> => {
-  return new Promise(resolve => {
-    setTimeout(() => {
-      const links: CaseLink[] = [];
-      if (newCase.relevantObjects.includes('red backpack')) {
-        links.push({
-          linkedCaseId: 'case032',
-          reason: 'This bag (red backpack) appears in case 032 and today’s case.',
-        });
-      }
-      if (newCase.relevantPeople.some(p => p.includes('blue jacket'))) {
-        links.push({
-          linkedCaseId: 'case015',
-          reason: 'A person wearing a similar blue jacket appeared last week in camera 3, case 015.',
-        });
-      }
-      resolve(links);
-    }, 1500);
-  });
-};
-
+import { semanticVideoSearch } from '@/ai/flows/semantic-video-search';
+import { similaritySearch } from '@/ai/flows/similarity-search';
+import { linkCases } from '@/ai/flows/case-linking';
+import { fileToDataUri } from '@/lib/utils';
 
 function SemanticSearchPanel() {
   const { toast } = useToast();
@@ -138,8 +95,14 @@ function SemanticSearchPanel() {
     }
     setIsLoading(true);
     setResults([]);
-    const searchResults = await mockSemanticVideoSearch();
-    setResults(searchResults);
+    try {
+      const videoDataUri = await fileToDataUri(videoFile);
+      const response = await semanticVideoSearch({ videoDataUri, query });
+      setResults(response.results);
+    } catch (error) {
+      console.error(error);
+      toast({ variant: 'destructive', title: 'Search Failed', description: 'An error occurred during the search.' });
+    }
     setIsLoading(false);
   };
 
@@ -252,8 +215,20 @@ function SimilaritySearchPanel() {
         }
         setIsLoading(true);
         setResults([]);
-        const searchResults = await mockSimilaritySearch();
-        setResults(searchResults);
+        try {
+            const referenceImage = await fileToDataUri(refImage);
+            const response = await similaritySearch({ referenceImage });
+            const eventImages = PlaceHolderImages.filter(img => img.id.startsWith('event-'));
+            const resultsWithImages = response.results.map((result, i) => ({
+                ...result,
+                imageUrl: eventImages[i % eventImages.length].imageUrl,
+                imageHint: eventImages[i % eventImages.length].imageHint,
+            })).sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+            setResults(resultsWithImages);
+        } catch (error) {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Search Failed', description: 'An error occurred during the similarity search.' });
+        }
         setIsLoading(false);
     };
 
@@ -335,8 +310,14 @@ function CaseLinkingPanel() {
         }
         setIsLoading(true);
         setLinks([]);
-        const linkedCases = await mockLinkCases({ ...newCase, caseId: `case${Date.now()}` }, pastCases);
-        setLinks(linkedCases);
+        try {
+            const caseDetails: CaseDetails = { ...newCase, caseId: `case${Date.now()}`, videoSegments: [] };
+            const response = await linkCases({ newCase: caseDetails, pastCases });
+            setLinks(response.links);
+        } catch(error) {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Analysis Failed', description: 'An error occurred while linking cases.' });
+        }
         setIsLoading(false);
     };
 

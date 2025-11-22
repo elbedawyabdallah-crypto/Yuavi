@@ -17,6 +17,7 @@ export type CaseDetails = {
   description: string;
   relevantObjects: string[];
   relevantPeople: string[];
+  videoSegments?: string[];
 };
 
 export type CaseLink = {
