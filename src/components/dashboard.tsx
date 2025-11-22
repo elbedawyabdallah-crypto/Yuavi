@@ -139,7 +139,31 @@ const VideoPlayer = ({ videoSrc, isPlaying, setIsPlaying, currentTime }: { video
   );
 };
 
-const DashboardView = ({ processingStatus, onStartSearch, files, onFileChange, onRemoveFile, onAddCamera, onNewCase }: { processingStatus: string, onStartSearch: () => void, files: (File | null)[], onFileChange: (index: number, file: File) => void, onRemoveFile: (index: number) => void, onAddCamera: () => void, onNewCase: () => void }) => (
+const DashboardView = ({
+  processingStatus,
+  onStartSearch,
+  files,
+  onFileChange,
+  onRemoveFile,
+  onAddCamera,
+  onNewCase,
+  newCaseName,
+  setNewCaseName,
+  newCaseLocation,
+  setNewCaseLocation,
+}: {
+  processingStatus: string;
+  onStartSearch: () => void;
+  files: (File | null)[];
+  onFileChange: (index: number, file: File) => void;
+  onRemoveFile: (index: number) => void;
+  onAddCamera: () => void;
+  onNewCase: () => void;
+  newCaseName: string;
+  setNewCaseName: (name: string) => void;
+  newCaseLocation: string;
+  setNewCaseLocation: (location: string) => void;
+}) => (
   <div className="space-y-6 animate-in fade-in duration-500">
     <div className="flex justify-between items-center">
       <div>
@@ -192,12 +216,36 @@ const DashboardView = ({ processingStatus, onStartSearch, files, onFileChange, o
       )}
 
       {processingStatus === 'ready' && (
-        <div className="flex flex-col items-center animate-in zoom-in duration-300">
+        <div className="flex flex-col items-center animate-in zoom-in duration-300 w-full max-w-lg">
           <div className="w-20 h-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mb-4 border-2 border-green-500/50 shadow-[0_0_20px_rgba(34,197,94,0.3)]">
             <CheckCircle size={40} />
           </div>
           <h3 className="text-2xl font-bold text-foreground mb-2">Footage Indexed!</h3>
-          <p className="text-muted-foreground text-sm mb-6">The video has been processed and is ready for AI investigation.</p>
+          <p className="text-muted-foreground text-sm mb-6">Enter case details below to start the investigation.</p>
+          
+          <div className="w-full space-y-4 text-left mb-6">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground ml-1">Case Name</label>
+              <input
+                type="text"
+                value={newCaseName}
+                onChange={(e) => setNewCaseName(e.target.value)}
+                placeholder="e.g., 'Robbery at Main Street Bank'"
+                className="w-full bg-background border border-border text-foreground p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground ml-1">Location of Crime</label>
+              <input
+                type="text"
+                value={newCaseLocation}
+                onChange={(e) => setNewCaseLocation(e.target.value)}
+                placeholder="e.g., '123 Main St, Anytown'"
+                className="w-full bg-background border border-border text-foreground p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+          </div>
+
           <button 
             onClick={onStartSearch}
             className="flex items-center px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-green-900/50"
@@ -562,6 +610,8 @@ const App = () => {
   const [cases, setCases] = useState<any[]>([]);
   const [isLinking, setIsLinking] = useState(false);
   const [linkingResults, setLinkingResults] = useState<any>({});
+  const [newCaseName, setNewCaseName] = useState('');
+  const [newCaseLocation, setNewCaseLocation] = useState('');
   
   const { toast } = useToast();
 
@@ -616,6 +666,8 @@ const App = () => {
     if (!file) return;
     setVideoFile(file);
     setVideoSrc(URL.createObjectURL(file));
+    setNewCaseName(`Case from ${file.name}`);
+    setNewCaseLocation('Unknown');
     setProcessingStatus('ready');
   };
 
@@ -682,6 +734,25 @@ const App = () => {
     setActiveTab('casetracking');
   };
 
+  const handleStartInvestigation = () => {
+    const newCase = {
+      caseId: `CASE-${String(Date.now()).slice(-4)}`,
+      caseName: newCaseName || 'Untitled Case',
+      timestamp: new Date().toISOString(),
+      place: newCaseLocation || 'Unknown Location',
+      description: `Case created from video upload: ${videoFile?.name || 'N/A'}`,
+      relevantObjects: [],
+      relevantPeople: [],
+      videoSegments: [videoFile?.name || 'unknown_video'],
+    };
+    setCases(prevCases => [newCase, ...prevCases]);
+    toast({
+      title: "Case Created",
+      description: `New case "${newCase.caseName}" has been added.`,
+    });
+    setActiveTab('semantic');
+  };
+
   const handleUpdateCase = (caseId: string, updates: any) => {
     setCases(prevCases => prevCases.map(c => c.caseId === caseId ? { ...c, ...updates } : c));
   };
@@ -743,12 +814,16 @@ const App = () => {
           <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none' }}>
             <DashboardView 
               processingStatus={processingStatus} 
-              onStartSearch={() => setActiveTab('semantic')}
+              onStartSearch={handleStartInvestigation}
               files={files}
               onFileChange={handleFileChange}
               onRemoveFile={handleRemoveFile}
               onAddCamera={handleAddCamera}
               onNewCase={handleNewCase}
+              newCaseName={newCaseName}
+              setNewCaseName={setNewCaseName}
+              newCaseLocation={newCaseLocation}
+              setNewCaseLocation={setNewCaseLocation}
             />
           </div>
           <div style={{ display: activeTab === 'semantic' ? 'block' : 'none' }}>
@@ -776,3 +851,5 @@ const App = () => {
 };
 
 export default App;
+
+    
