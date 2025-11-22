@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
+import { semanticVideoSearch } from '@/ai/flows/semantic-video-search';
+import { similaritySearch } from '@/ai/flows/similarity-search';
 
 // --- Components ---
 
@@ -59,6 +61,26 @@ const VideoPlayer = ({ videoSrc, isPlaying, setIsPlaying, currentTime }: { video
     }
   }, [currentTime]);
 
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      const progress = (videoRef.current.currentTime / videoRef.current.duration) * 100;
+      const progressBar = document.getElementById('video-progress-bar');
+      if (progressBar) {
+        progressBar.style.width = `${progress}%`;
+      }
+    }
+  };
+
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (videoElement) {
+      videoElement.addEventListener('timeupdate', handleTimeUpdate);
+      return () => {
+        videoElement.removeEventListener('timeupdate', handleTimeUpdate);
+      };
+    }
+  }, [videoSrc]);
+
   return (
     <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden border border-border shadow-2xl group">
       {videoSrc ? (
@@ -83,40 +105,13 @@ const VideoPlayer = ({ videoSrc, isPlaying, setIsPlaying, currentTime }: { video
             {isPlaying ? <Pause size={20} /> : <Play size={20} />}
           </button>
           <div className="flex-1 h-1.5 bg-secondary rounded-full relative">
-            <div className="absolute top-0 left-0 h-full bg-primary rounded-full" style={{width: '0%'}}></div>
+            <div id="video-progress-bar" className="absolute top-0 left-0 h-full bg-primary rounded-full" style={{width: '0%'}}></div>
           </div>
         </div>
       </div>}
     </div>
   );
 };
-
-const SettingsModal = ({ isOpen, onClose, apiKey, setApiKey }: { isOpen: boolean, onClose: () => void, apiKey: string, setApiKey: (key: string) => void }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md">
-        <h3 className="text-xl font-bold text-foreground mb-4">System Settings</h3>
-        <label className="block text-sm text-muted-foreground mb-2">Google Gemini API Key</label>
-        <input 
-          type="password" 
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder="Enter your API key"
-          className="w-full bg-background border border-border text-foreground p-3 rounded-lg mb-4 focus:ring-2 focus:ring-primary outline-none"
-        />
-        <p className="text-xs text-muted-foreground mb-6">
-          Your key is used locally in your browser to process video frames. It is never stored on our servers.
-        </p>
-        <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-muted-foreground hover:text-foreground">Cancel</button>
-          <button onClick={onClose} className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg">Save Config</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 
 const DashboardView = ({ onUpload, processingStatus, onStartSearch, files, onFileChange, onRemoveFile }: { onUpload: any, processingStatus: string, onStartSearch: () => void, files: (File | null)[], onFileChange: (index: number, file: File) => void, onRemoveFile: (index: number) => void }) => (
   <div className="space-y-6 animate-in fade-in duration-500">
@@ -175,14 +170,14 @@ const DashboardView = ({ onUpload, processingStatus, onStartSearch, files, onFil
         <div className="flex flex-col items-center text-primary">
           <Loader size={32} className="animate-spin mb-4" />
           <span className="text-lg font-mono text-foreground mb-2">{processingStatus}</span>
-          <p className="text-xs text-muted-foreground">Extracting keyframes for Gemini...</p>
+          <p className="text-xs text-muted-foreground">This may take a moment...</p>
         </div>
       )}
 
       {processingStatus === 'error' && (
         <div className="flex flex-col items-center text-destructive">
            <AlertTriangle size={32} className="mb-2" />
-           <p>Failed to process video. Please try a shorter clip.</p>
+           <p>Failed to process video. Please try a different file.</p>
            <button onClick={() => window.location.reload()} className="mt-4 text-sm underline">Try Again</button>
         </div>
       )}
@@ -190,7 +185,7 @@ const DashboardView = ({ onUpload, processingStatus, onStartSearch, files, onFil
   </div>
 );
 
-const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSearchResults, frames, apiKey, videoSrc }: { isSearching: boolean, setIsSearching: (isSearching: boolean) => void, searchResults: any[], setSearchResults: (results: any[]) => void, frames: any[], apiKey: string, videoSrc: string | null }) => {
+const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSearchResults, videoSrc, videoFile }: { isSearching: boolean, setIsSearching: (isSearching: boolean) => void, searchResults: any[], setSearchResults: (results: any[]) => void, videoSrc: string | null, videoFile: File | null }) => {
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const { toast } = useToast();
@@ -200,11 +195,7 @@ const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSea
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!apiKey) {
-      toast({ variant: 'destructive', title: "API Key Missing", description: "Please configure your API Key in settings first." });
-      return;
-    }
-    if (!frames.length) {
+    if (!videoFile) {
       toast({ variant: 'destructive', title: "No Video", description: "Please upload and process a video first." });
       return;
     }
@@ -214,12 +205,9 @@ const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSea
     setSearchResults([]);
 
     try {
-      // This is a mock response. Replace with your actual Genkit flow call.
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setSearchResults([
-        { timestamp: "00:00:12", description: "A person in a red jacket enters the frame from the left.", confidence: 95 },
-        { timestamp: "00:00:25", description: "The person in the red jacket walks towards the exit.", confidence: 92 },
-      ]);
+      const videoDataUri = await fileToDataUri(videoFile);
+      const result = await semanticVideoSearch({ videoDataUri, query });
+      setSearchResults(result.results || []);
     } catch (err: any) {
       setError(err.message || "Analysis failed");
       toast({ variant: 'destructive', title: "Analysis Failed", description: err.message });
@@ -227,6 +215,11 @@ const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSea
       setIsSearching(false);
     }
   };
+  
+  const handleEventClick = ( (timeInSeconds: number) => {
+    setCurrentTime(timeInSeconds);
+    setIsPlaying(true);
+  });
 
   return (
     <div className="h-full flex flex-col animate-in slide-in-from-right duration-300">
@@ -269,23 +262,17 @@ const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSea
             {isSearching ? (
                <div className="p-8 text-center text-muted-foreground">
                  <Loader className="animate-spin w-8 h-8 text-primary mx-auto mb-4" />
-                 <p>Sending frames to Gemini...</p>
+                 <p>Sending video to Gemini...</p>
                  <p className="text-xs mt-2 opacity-50">Analyzing visual context</p>
                </div>
             ) : searchResults.length > 0 ? (
               searchResults.map((res, idx) => (
-                <div key={idx} className="bg-secondary p-3 rounded-lg border border-border hover:border-primary cursor-pointer group transition-all">
+                <div key={idx} onClick={() => handleEventClick(res.startTime)} className="bg-secondary p-3 rounded-lg border border-border hover:border-primary cursor-pointer group transition-all">
                   <div className="flex justify-between items-start mb-1">
-                    <span className="text-primary font-mono text-sm font-bold">{res.timestamp}</span>
-                    <span className="text-[10px] bg-background px-1.5 py-0.5 rounded text-muted-foreground">Match</span>
+                    <span className="text-primary font-mono text-sm font-bold">{new Date(res.startTime * 1000).toISOString().substr(14, 5)} - {new Date(res.endTime * 1000).toISOString().substr(14, 5)}</span>
+                    <span className="text-[10px] bg-background px-1.5 py-0.5 rounded text-muted-foreground">Event</span>
                   </div>
                   <p className="text-sm text-foreground mb-2">{res.description}</p>
-                  <div className="flex items-center gap-2">
-                    <div className="h-1 flex-1 bg-background rounded-full overflow-hidden">
-                      <div className="h-full bg-green-500" style={{ width: `${res.confidence}%` }}></div>
-                    </div>
-                    <span className="text-[10px] text-green-400">{res.confidence}%</span>
-                  </div>
                 </div>
               ))
             ) : (
@@ -303,7 +290,7 @@ const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSea
                <Activity size={16} className="mr-2 text-primary" /> System Log
              </h4>
              <p className="text-xs text-muted-foreground leading-relaxed font-mono">
-               {frames.length > 0 ? `Loaded ${frames.length} frames from video.` : 'Waiting for video upload...'}
+               {videoFile ? `Loaded video: ${videoFile.name}.` : 'Waiting for video upload...'}
              </p>
           </div>
         </div>
@@ -312,7 +299,7 @@ const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSea
   );
 };
 
-const SimilarityView = ({ apiKey, frames }: { apiKey: string, frames: any[] }) => {
+const SimilarityView = () => {
     const { toast } = useToast();
     const [suspectImg, setSuspectImg] = useState<string | null>(null);
     const [matches, setMatches] = useState<any[]>([]);
@@ -327,26 +314,16 @@ const SimilarityView = ({ apiKey, frames }: { apiKey: string, frames: any[] }) =
     };
 
     const runSimilaritySearch = async () => {
-        if (!frames.length || !suspectImg) {
-            toast({ variant: 'destructive', title: "Missing Input", description: "Please upload a suspect image and video." });
-            return;
-        }
-
-        if (!apiKey) {
-            toast({ variant: 'destructive', title: "API Key Missing", description: "Please set your API key in settings." });
+        if (!suspectImg) {
+            toast({ variant: 'destructive', title: "Missing Input", description: "Please upload a suspect image." });
             return;
         }
 
         setIsAnalyzing(true);
         setMatches([]);
         try {
-            // Mock response
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            setMatches([
-                { timestamp: "00:00:12", similarity: 90, reason: "Exact face match and red jacket" },
-                { timestamp: "00:01:45", similarity: 85, reason: "Similar clothing and body shape detected near the entrance." }
-            ]);
-
+            const result = await similaritySearch({ referenceImage: suspectImg });
+            setMatches(result.results || []);
         } catch (err: any) {
             toast({ variant: 'destructive', title: "Analysis Failed", description: err.message });
         } finally {
@@ -360,9 +337,9 @@ const SimilarityView = ({ apiKey, frames }: { apiKey: string, frames: any[] }) =
                 <div className="w-1/3 flex flex-col gap-4">
                     <div className="bg-card border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center p-8 relative overflow-hidden aspect-square">
                         {suspectImg ? (
-                            <img src={suspectImg} className="absolute inset-0 w-full h-full object-cover opacity-50" />
+                            <img src={suspectImg} alt="Suspect" className="absolute inset-0 w-full h-full object-cover" />
                         ) : null}
-                        <div className="relative z-10 flex flex-col items-center text-center">
+                         <div className={`relative z-10 flex flex-col items-center text-center transition-opacity ${suspectImg ? 'opacity-0 hover:opacity-100' : 'opacity-100'} bg-black/50 p-4 rounded-lg`}>
                             <User size={32} className="text-primary mb-2" />
                             <h3 className="text-lg font-semibold text-foreground">Suspect Image</h3>
                             <label className="mt-4 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm cursor-pointer">
@@ -374,7 +351,7 @@ const SimilarityView = ({ apiKey, frames }: { apiKey: string, frames: any[] }) =
 
                     <button
                         onClick={runSimilaritySearch}
-                        disabled={isAnalyzing || !suspectImg || frames.length === 0}
+                        disabled={isAnalyzing || !suspectImg}
                         className="w-full py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-secondary text-white rounded-xl font-bold transition-all flex items-center justify-center"
                     >
                         {isAnalyzing ? <Loader className="animate-spin mr-2" /> : <Search className="mr-2" />}
@@ -385,7 +362,7 @@ const SimilarityView = ({ apiKey, frames }: { apiKey: string, frames: any[] }) =
                 <div className="flex-1 bg-card/50 rounded-xl border border-border p-6 overflow-y-auto">
                     <h3 className="text-lg font-bold text-foreground mb-6 flex items-center">
                         <User size={20} className="mr-2 text-purple-400" />
-                        {isAnalyzing ? "Scanning Video..." : `Matches Found (${matches.length})`}
+                        {isAnalyzing ? "Scanning available footage..." : `Matches Found (${matches.length})`}
                     </h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -394,14 +371,14 @@ const SimilarityView = ({ apiKey, frames }: { apiKey: string, frames: any[] }) =
                                 <div className="p-3">
                                     <div className="flex justify-between items-center mb-1">
                                         <span className="text-foreground text-sm font-medium">Found at {match.timestamp}</span>
-                                        <span className="text-xs bg-green-900 text-green-300 px-2 py-1 rounded">{match.similarity}%</span>
+                                        <span className="text-xs bg-green-900 text-green-300 px-2 py-1 rounded">{match.confidence}%</span>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-2">{match.reason}</p>
+                                    <p className="text-xs text-muted-foreground mt-2">Video: {match.videoName}</p>
                                 </div>
                             </div>
                         ))}
                         {!isAnalyzing && matches.length === 0 && (
-                            <p className="text-muted-foreground text-sm col-span-full text-center py-10">Upload a suspect photo and a video, then run the comparison to see results.</p>
+                            <p className="text-muted-foreground text-sm col-span-full text-center py-10">Upload a suspect photo and run the comparison to see results across all indexed video footage.</p>
                         )}
                          {isAnalyzing && (
                             <div className="text-muted-foreground text-sm col-span-full text-center py-10">
@@ -419,12 +396,10 @@ const SimilarityView = ({ apiKey, frames }: { apiKey: string, frames: any[] }) =
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [apiKey, setApiKey] = useState('');
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   const [files, setFiles] = useState<(File | null)[]>(Array(5).fill(null));
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
-  const [frames, setFrames] = useState<any[]>([]);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [processingStatus, setProcessingStatus] = useState('idle');
 
   const [isSearching, setIsSearching] = useState(false);
@@ -435,8 +410,7 @@ const App = () => {
     newFiles[index] = file;
     setFiles(newFiles);
 
-    // For simplicity, we'll only process and display the first video.
-    // This can be extended to handle multiple video contexts.
+    // For simplicity, we'll only process and display the first video with a file.
     if(index === 0 && file) {
       handleVideoProcess(file);
     }
@@ -448,32 +422,16 @@ const App = () => {
     setFiles(newFiles);
     if(index === 0) {
       setVideoSrc(null);
-      setFrames([]);
+      setVideoFile(null);
       setProcessingStatus('idle');
     }
   };
 
   const handleVideoProcess = async (file: File) => {
     if (!file) return;
-
+    setVideoFile(file);
     setVideoSrc(URL.createObjectURL(file));
-    setProcessingStatus('Extracting keyframes...');
-    setFrames([]);
-
-    try {
-      // Mock frame extraction
-      await new Promise(res => setTimeout(res, 1500));
-      const mockFrames = Array.from({ length: 11 }, (_, i) => ({
-        time: i * 2,
-        timestamp: new Date(i * 2 * 1000).toISOString().substr(11, 8),
-        data: 'dummy_base64_data'
-      }));
-      setFrames(mockFrames);
-      setProcessingStatus('ready');
-    } catch (err) {
-      console.error(err);
-      setProcessingStatus('error');
-    }
+    setProcessingStatus('ready');
   };
 
   const renderContent = () => {
@@ -493,12 +451,11 @@ const App = () => {
             setIsSearching={setIsSearching} 
             searchResults={searchResults} 
             setSearchResults={setSearchResults}
-            frames={frames}
-            apiKey={apiKey}
             videoSrc={videoSrc}
+            videoFile={videoFile}
           />;
         case 'similarity': 
-          return <SimilarityView apiKey={apiKey} frames={frames} />;
+          return <SimilarityView />;
         default: 
           return <DashboardView onUpload={handleVideoProcess} processingStatus={processingStatus} onStartSearch={() => setActiveTab('semantic')} files={files} onFileChange={handleFileChange} onRemoveFile={handleRemoveFile}/>;
       }
@@ -525,22 +482,12 @@ const App = () => {
         </nav>
 
         <div className="mt-auto space-y-4">
-           <button 
-             onClick={() => setIsSettingsOpen(true)}
-             className="flex items-center w-full p-3 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-           >
-             <Settings size={20} className="mr-3" />
-             <span className="font-medium text-sm">Settings (API Key)</span>
-             {!apiKey && <div className="ml-auto w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>}
-             {apiKey && <div className="ml-auto w-2 h-2 bg-green-500 rounded-full"></div>}
-           </button>
-           
            <div className="bg-secondary/50 p-4 rounded-xl border border-border">
              <div className="flex items-center gap-3">
                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-blue-500"></div>
                <div>
                  <p className="text-xs font-bold text-foreground">Investigator</p>
-                 <p className="text-[10px] text-muted-foreground">{frames.length > 0 ? 'System Ready' : 'Idle'}</p>
+                 <p className="text-[10px] text-muted-foreground">{videoFile ? 'System Ready' : 'Idle'}</p>
                </div>
              </div>
            </div>
@@ -550,9 +497,9 @@ const App = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 border-b border-border bg-card/50 backdrop-blur flex items-center justify-between px-6">
           <h2 className="text-lg font-semibold text-foreground capitalize">{activeTab.replace('-', ' ')}</h2>
-          {frames.length > 0 && (
+          {videoFile && (
              <span className="text-xs text-green-400 bg-green-400/10 px-2 py-1 rounded border border-green-400/20">
-               {frames.length} Frames Indexed
+               Video Loaded: {videoFile.name}
              </span>
           )}
         </header>
@@ -562,14 +509,10 @@ const App = () => {
         </main>
       </div>
 
-      <SettingsModal 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
-        apiKey={apiKey} 
-        setApiKey={setApiKey} 
-      />
     </div>
   );
 };
 
 export default App;
+
+    
