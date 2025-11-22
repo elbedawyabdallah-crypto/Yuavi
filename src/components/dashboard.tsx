@@ -27,7 +27,8 @@ import {
   PlusCircle,
   Trash2,
   Edit,
-  ArrowLeft
+  ArrowLeft,
+  Camera
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
@@ -152,6 +153,8 @@ const DashboardView = ({
   setNewCaseName,
   newCaseLocation,
   setNewCaseLocation,
+  isUploadingMore,
+  setIsUploadingMore,
 }: {
   processingStatus: string;
   onStartSearch: () => void;
@@ -164,6 +167,8 @@ const DashboardView = ({
   setNewCaseName: (name: string) => void;
   newCaseLocation: string;
   setNewCaseLocation: (location: string) => void;
+  isUploadingMore: boolean;
+  setIsUploadingMore: (isUploading: boolean) => void;
 }) => (
   <div className="space-y-6 animate-in fade-in duration-500">
     <div className="flex justify-between items-center">
@@ -179,7 +184,7 @@ const DashboardView = ({
 
     <div className="bg-card border border-border border-dashed rounded-xl p-8 text-center hover:bg-secondary/50 transition-all min-h-[300px] flex flex-col items-center justify-center">
       
-      {processingStatus === 'idle' && (
+      {(processingStatus === 'idle' || isUploadingMore) && (
         <>
           <div className="w-16 h-16 bg-primary/20 text-primary rounded-full flex items-center justify-center mb-4">
             <Upload size={32} />
@@ -191,12 +196,14 @@ const DashboardView = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-4 w-full max-w-4xl">
             {files.map((file, index) => (
               <div key={index} className="relative">
-                <label className="cursor-pointer aspect-video w-full bg-secondary/30 rounded-lg flex flex-col items-center justify-center text-muted-foreground hover:bg-secondary transition-colors">
+                 <label className={`cursor-pointer aspect-video w-full rounded-lg flex flex-col items-center justify-center text-muted-foreground transition-colors ${
+                  file ? 'bg-secondary/20 border-2 border-dashed border-green-500/50 filter grayscale opacity-60' : 'bg-secondary/30 hover:bg-secondary'
+                 }`}>
                   {file ? (
                     <>
                        <CheckCircle size={24} className="text-green-500" />
-                       <span className="text-xs mt-2 text-center break-all p-1">{file.name}</span>
-                       <button onClick={(e) => { e.preventDefault(); onRemoveFile(index); }} className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1"><X size={12}/></button>
+                       <span className="text-xs mt-2 text-center break-all p-1 text-foreground">{file.name}</span>
+                       <button onClick={(e) => { e.preventDefault(); onRemoveFile(index); }} className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 z-10"><X size={12}/></button>
                     </>
                   ) : (
                     <>
@@ -204,7 +211,7 @@ const DashboardView = ({
                       <span className="text-xs mt-2">Camera {index + 1}</span>
                     </>
                   )}
-                  <input type="file" accept="video/*" className="hidden" onChange={(e) => { if(e.target.files) onFileChange(index, e.target.files[0]); }} />
+                  <input type="file" accept="video/*" className="hidden" onChange={(e) => { if(e.target.files) onFileChange(index, e.target.files[0]); }} disabled={!!file} />
                 </label>
               </div>
             ))}
@@ -213,16 +220,17 @@ const DashboardView = ({
             <PlusCircle size={16} />
             Add Camera
           </button>
+          {isUploadingMore && <button onClick={() => setIsUploadingMore(false)} className="mt-4 text-sm underline text-primary">Done Uploading</button>}
         </>
       )}
 
-      {processingStatus === 'ready' && (
+      {processingStatus === 'ready' && !isUploadingMore && (
         <div className="flex flex-col items-center animate-in zoom-in duration-300 w-full max-w-lg">
           <div className="w-20 h-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mb-4 border-2 border-green-500/50 shadow-[0_0_20px_rgba(34,197,94,0.3)]">
             <CheckCircle size={40} />
           </div>
           <h3 className="text-2xl font-bold text-foreground mb-2">Footage Indexed!</h3>
-          <p className="text-muted-foreground text-sm mb-6">Enter case details below to start the investigation.</p>
+          <p className="text-muted-foreground text-sm mb-6">Enter case details below to start the investigation, or upload more footage.</p>
           
           <div className="w-full space-y-4 text-left mb-6">
             <div>
@@ -247,12 +255,18 @@ const DashboardView = ({
             </div>
           </div>
 
-          <button 
-            onClick={onStartSearch}
-            className="flex items-center px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-green-900/50"
-          >
-            Start Investigation <ArrowRight className="ml-2" size={20} />
-          </button>
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={onStartSearch}
+              className="flex items-center px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-green-900/50"
+            >
+              Start Investigation <ArrowRight className="ml-2" size={20} />
+            </button>
+             <button onClick={() => setIsUploadingMore(true)} className="flex items-center px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors text-sm">
+                <Camera size={16} className="mr-2"/> Upload More Cameras
+            </button>
+          </div>
+
         </div>
       )}
 
@@ -603,7 +617,8 @@ const App = () => {
   const [files, setFiles] = useState<(File | null)[]>(Array(5).fill(null));
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [processingStatus, setProcessingStatus] = useState('idle');
+  const [processingStatus, setProcessingStatus] = useState('idle'); // idle, ready, error, [custom...]
+  const [isUploadingMore, setIsUploadingMore] = useState(false);
 
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -648,18 +663,26 @@ const App = () => {
     newFiles[index] = file;
     setFiles(newFiles);
 
-    if(index === 0 && file) {
+    // If it's the first file being uploaded, it becomes the primary video for analysis.
+    if (!videoFile) {
       handleVideoProcess(file);
     }
   };
 
   const handleRemoveFile = (index: number) => {
     const newFiles = [...files];
-    if (index === 0) { // If removing the primary video
+    const removedFile = newFiles[index];
+    newFiles[index] = null;
+    setFiles(newFiles);
+
+    // If the removed file was the primary video, reset everything.
+    if (videoFile && removedFile && videoFile.name === removedFile.name) {
       resetDashboard();
-    } else {
-      newFiles.splice(index, 1);
-      setFiles(newFiles);
+       // Check if there are other files and make the first one the new primary
+      const nextFile = newFiles.find(f => f !== null) as File | null;
+      if (nextFile) {
+        handleVideoProcess(nextFile);
+      }
     }
   };
 
@@ -670,6 +693,7 @@ const App = () => {
     setProcessingStatus('idle');
     setNewCaseName('');
     setNewCaseLocation('');
+    setIsUploadingMore(false);
   };
 
   const handleVideoProcess = async (file: File) => {
@@ -679,6 +703,7 @@ const App = () => {
     setNewCaseName(`Case from ${file.name}`);
     setNewCaseLocation('Unknown');
     setProcessingStatus('ready');
+    setIsUploadingMore(false); // Done with initial upload, show investigation options
   };
 
   const handleLinkCases = async () => {
@@ -739,7 +764,7 @@ const App = () => {
       description: `Case created from video upload: ${videoFile?.name || 'N/A'}`,
       relevantObjects: [],
       relevantPeople: [],
-      videoSegments: [videoFile?.name || 'unknown_video'],
+      videoSegments: files.filter(f => f).map(f => f!.name),
     };
     setCases(prevCases => [newCase, ...prevCases]);
     toast({
@@ -850,6 +875,8 @@ const App = () => {
               setNewCaseName={setNewCaseName}
               newCaseLocation={newCaseLocation}
               setNewCaseLocation={setNewCaseLocation}
+              isUploadingMore={isUploadingMore}
+              setIsUploadingMore={setIsUploadingMore}
             />
           </div>
           <div style={{ display: activeTab === 'semantic' ? 'block' : 'none' }}>
@@ -877,5 +904,3 @@ const App = () => {
 };
 
 export default App;
-
-    
