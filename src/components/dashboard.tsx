@@ -844,7 +844,12 @@ const App = () => {
   };
 
   const handleRemoveCase = (caseId: string) => {
+    const caseToRemove = cases.find(c => c.caseId === caseId);
     setCases(prevCases => prevCases.filter(c => c.caseId !== caseId));
+    // Also clear search results if the deleted case was the one being investigated
+    if (caseToRemove && videoFile && caseToRemove.videoSegments.includes(videoFile.name)) {
+      setSearchResults([]);
+    }
     toast({
       title: "Case Removed",
       description: `Case "${caseId}" has been deleted.`,
