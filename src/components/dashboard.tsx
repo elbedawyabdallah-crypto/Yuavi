@@ -72,14 +72,17 @@ import { fileToDataUri } from '@/lib/utils';
 function SemanticSearchPanel() {
   const { toast } = useToast();
   const [videoFile, setVideoFile] = React.useState<File | null>(null);
+  const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
   const [query, setQuery] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
   const [results, setResults] = React.useState<SemanticSearchResult[]>([]);
   const cctvImage = PlaceHolderImages.find(img => img.id === 'cctv-thumbnail-1');
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setVideoFile(e.target.files[0]);
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setVideoFile(file);
+      setVideoUrl(URL.createObjectURL(file));
       setResults([]);
     }
   };
@@ -127,14 +130,11 @@ function SemanticSearchPanel() {
                     </Button>
                 </div>
             )}
-            {videoFile && cctvImage && (
+            {videoFile && videoUrl && (
                 <div className="relative">
-                    <Image
-                        src={cctvImage.imageUrl}
-                        alt="CCTV thumbnail"
-                        width={600}
-                        height={400}
-                        data-ai-hint={cctvImage.imageHint}
+                    <video
+                        src={videoUrl}
+                        controls
                         className="w-full rounded-lg object-cover"
                     />
                     <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-xs text-white">
