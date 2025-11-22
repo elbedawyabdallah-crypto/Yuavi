@@ -28,7 +28,8 @@ import {
   Trash2,
   Edit,
   ArrowLeft,
-  Camera
+  Camera,
+  Lightbulb
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
@@ -289,7 +290,7 @@ const DashboardView = ({
   </div>
 );
 
-const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSearchResults, videoSrc, videoFile, onAddCase }: { isSearching: boolean, setIsSearching: (isSearching: boolean) => void, searchResults: any[], setSearchResults: (results: any[]) => void, videoSrc: string | null, videoFile: File | null, onAddCase: (event: any) => void }) => {
+const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSearchResults, videoSrc, videoFile, onAddClueToCase }: { isSearching: boolean, setIsSearching: (isSearching: boolean) => void, searchResults: any[], setSearchResults: (results: any[]) => void, videoSrc: string | null, videoFile: File | null, onAddClueToCase: (event: any) => void }) => {
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const { toast } = useToast();
@@ -379,8 +380,8 @@ const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSea
                     </div>
                     <p className="text-sm text-foreground mb-2">{res.description}</p>
                   </div>
-                   <button onClick={() => onAddCase(res)} className="w-full text-xs mt-2 p-1.5 bg-primary/10 text-primary rounded-md hover:bg-primary/20 transition-colors flex items-center justify-center gap-2">
-                     <PlusCircle size={14} /> Add to Cases
+                   <button onClick={() => onAddClueToCase(res)} className="w-full text-xs mt-2 p-1.5 bg-primary/10 text-primary rounded-md hover:bg-primary/20 transition-colors flex items-center justify-center gap-2">
+                     <PlusCircle size={14} /> Add Clue to Current Case
                    </button>
                 </div>
               ))
@@ -561,9 +562,20 @@ const CaseLinkingView = ({ cases, onLinkCases, linkingResults, isLinking, onUpda
                   </div>
               </div>
               
-              <p className="text-sm text-muted-foreground mt-2 mb-2">{c.description}</p>
+              <p className="text-sm text-muted-foreground mt-3 mb-3">{c.description}</p>
               
-              <div className="flex flex-wrap gap-2 text-xs mt-3">
+              <div className="space-y-2 text-sm mt-4 border-t border-border/50 pt-3">
+                <h4 className="font-semibold text-foreground flex items-center gap-2 text-xs uppercase"><Lightbulb size={14}/> Clues</h4>
+                 {c.clues && c.clues.length > 0 ? (
+                  c.clues.map((clue:string, ci:number) => (
+                    <p key={ci} className="text-muted-foreground border-l-2 border-primary/20 pl-3 p-1 rounded-r-md bg-background/30">{clue}</p>
+                  ))
+                ) : (
+                  <span className="text-muted-foreground italic text-xs">No clues added yet.</span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-xs mt-3 pt-3 border-t border-border/50">
                 <span className="font-semibold text-foreground text-xs">People:</span>
                 {c.relevantPeople.map((p:string, pi:number) => <span key={pi} className="bg-background px-2 py-1 rounded">{p}</span>)}
                  {c.relevantPeople.length === 0 && <span className="text-muted-foreground italic">None</span>}
@@ -640,8 +652,8 @@ const App = () => {
     } else {
       // Default cases if nothing is saved
       setCases([
-        { caseId: 'CASE-002', caseName: 'Stolen Wallet Incident', timestamp: '2023-10-26T10:00:00Z', place: 'Main St. & 2nd Ave', description: 'Previous report of a stolen wallet.', relevantObjects: ['Backpack', 'Sunglasses'], relevantPeople: ['Person B'], videoSegments: ['cam3_10-00.mp4'] },
-        { caseId: 'CASE-001', caseName: 'Prior Sighting of Individual', timestamp: '2023-10-19T14:30:00Z', place: 'West End Plaza', description: 'Individual matching suspect description seen a week ago.', relevantObjects: ['Cap'], relevantPeople: ['Person A'], videoSegments: ['cam2_15-30.mp4'] }
+        { caseId: 'CASE-002', caseName: 'Stolen Wallet Incident', timestamp: '2023-10-26T10:00:00Z', place: 'Main St. & 2nd Ave', description: 'Previous report of a stolen wallet.', clues: [], relevantObjects: ['Backpack', 'Sunglasses'], relevantPeople: ['Person B'], videoSegments: ['cam3_10-00.mp4'] },
+        { caseId: 'CASE-001', caseName: 'Prior Sighting of Individual', timestamp: '2023-10-19T14:30:00Z', place: 'West End Plaza', description: 'Individual matching suspect description seen a week ago.', clues: [], relevantObjects: ['Cap'], relevantPeople: ['Person A'], videoSegments: ['cam2_15-30.mp4'] }
       ]);
     }
   }, []);
@@ -740,23 +752,34 @@ const App = () => {
     }
   }
 
-  const handleAddCase = (event: any) => {
-    const newCase = {
-      caseId: `CASE-${String(Date.now()).slice(-4)}`,
-      caseName: 'New Case from Event',
-      timestamp: new Date().toISOString(),
-      place: 'Location Unknown',
-      description: event.description,
-      relevantObjects: [], // Can be enhanced later
-      relevantPeople: [], // Can be enhanced later
-      videoSegments: [videoFile?.name || 'unknown_video']
-    };
-    setCases(prevCases => [newCase, ...prevCases]);
-    toast({
-      title: "Case Created",
-      description: `New case "${newCase.caseId}" has been added.`,
+  const handleAddClueToCase = (event: any) => {
+    if (cases.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No Active Case",
+        description: "Please create a case from the dashboard before adding clues.",
+      });
+      return;
+    }
+    
+    setCases(prevCases => {
+      const newCases = [...prevCases];
+      const currentCase = { ...newCases[0] };
+      
+      if (!currentCase.clues) {
+        currentCase.clues = [];
+      }
+      
+      currentCase.clues.push(event.description);
+      newCases[0] = currentCase;
+      
+      return newCases;
     });
-    handleTabChange('casetracking', true);
+
+    toast({
+      title: "Clue Added",
+      description: `The event has been added to case "${cases[0].caseName}".`,
+    });
   };
 
   const handleNewCase = () => {
@@ -771,6 +794,7 @@ const App = () => {
       timestamp: new Date().toISOString(),
       place: newCaseLocation || 'Unknown Location',
       description: `Case created from video upload: ${videoFile?.name || 'N/A'}`,
+      clues: [],
       relevantObjects: [],
       relevantPeople: [],
       videoSegments: files.filter(f => f).map(f => f!.name),
@@ -896,7 +920,7 @@ const App = () => {
               setSearchResults={setSearchResults}
               videoSrc={videoSrc}
               videoFile={videoFile}
-              onAddCase={handleAddCase}
+              onAddClueToCase={handleAddClueToCase}
             />
           </div>
           <div style={{ display: activeTab === 'similarity' ? 'block' : 'none' }}>
