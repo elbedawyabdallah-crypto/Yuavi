@@ -537,35 +537,6 @@ const App = () => {
 
   const { toast } = useToast();
 
-  const renderContent = () => {
-      switch (activeTab) {
-        case 'dashboard': 
-          return <DashboardView 
-            onUpload={handleVideoProcess} 
-            processingStatus={processingStatus} 
-            onStartSearch={() => setActiveTab('semantic')}
-            files={files}
-            onFileChange={handleFileChange}
-            onRemoveFile={handleRemoveFile}
-            />;
-        case 'semantic': 
-          return <SemanticSearchView 
-            isSearching={isSearching} 
-            setIsSearching={setIsSearching} 
-            searchResults={searchResults} 
-            setSearchResults={setSearchResults}
-            videoSrc={videoSrc}
-            videoFile={videoFile}
-          />;
-        case 'similarity': 
-          return <SimilarityView videoFile={videoFile} />;
-        case 'casetracking':
-          return <CaseLinkingView cases={cases} onLinkCases={handleLinkCases} linkingResults={linkingResults} isLinking={isLinking} />;
-        default: 
-          return <DashboardView onUpload={handleVideoProcess} processingStatus={processingStatus} onStartSearch={() => setActiveTab('semantic')} files={files} onFileChange={handleFileChange} onRemoveFile={handleRemoveFile}/>;
-      }
-  };
-
   return (
     <div className="flex h-screen bg-background text-foreground font-sans selection:bg-primary/30">
       
@@ -611,7 +582,32 @@ const App = () => {
         </header>
 
         <main className="flex-1 overflow-auto p-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-secondary/30 via-background to-background">
-          {renderContent()}
+          <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none' }}>
+            <DashboardView 
+              onUpload={handleVideoProcess} 
+              processingStatus={processingStatus} 
+              onStartSearch={() => setActiveTab('semantic')}
+              files={files}
+              onFileChange={handleFileChange}
+              onRemoveFile={handleRemoveFile}
+            />
+          </div>
+          <div style={{ display: activeTab === 'semantic' ? 'block' : 'none' }}>
+            <SemanticSearchView 
+              isSearching={isSearching} 
+              setIsSearching={setIsSearching} 
+              searchResults={searchResults} 
+              setSearchResults={setSearchResults}
+              videoSrc={videoSrc}
+              videoFile={videoFile}
+            />
+          </div>
+          <div style={{ display: activeTab === 'similarity' ? 'block' : 'none' }}>
+            <SimilarityView videoFile={videoFile} />
+          </div>
+          <div style={{ display: activeTab === 'casetracking' ? 'block' : 'none' }}>
+            <CaseLinkingView cases={cases} onLinkCases={handleLinkCases} linkingResults={linkingResults} isLinking={isLinking} />
+          </div>
         </main>
       </div>
 
