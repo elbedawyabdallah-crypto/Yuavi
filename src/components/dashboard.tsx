@@ -653,13 +653,21 @@ const App = () => {
 
   const handleRemoveFile = (index: number) => {
     const newFiles = [...files];
-    newFiles.splice(index, 1);
-    setFiles(newFiles);
-    if(index === 0) {
-      setVideoSrc(null);
-      setVideoFile(null);
-      setProcessingStatus('idle');
+    if (index === 0) { // If removing the primary video
+      resetDashboard();
+    } else {
+      newFiles.splice(index, 1);
+      setFiles(newFiles);
     }
+  };
+
+  const resetDashboard = () => {
+    setFiles(Array(5).fill(null));
+    setVideoSrc(null);
+    setVideoFile(null);
+    setProcessingStatus('idle');
+    setNewCaseName('');
+    setNewCaseLocation('');
   };
 
   const handleVideoProcess = async (file: File) => {
@@ -716,22 +724,8 @@ const App = () => {
   };
 
   const handleNewCase = () => {
-    const newCase = {
-      caseId: `CASE-${String(Date.now()).slice(-4)}`,
-      caseName: 'Untitled Case',
-      timestamp: new Date().toISOString(),
-      place: 'Unknown Location',
-      description: 'Newly created case.',
-      relevantObjects: [],
-      relevantPeople: [],
-      videoSegments: []
-    };
-    setCases(prevCases => [newCase, ...prevCases]);
-    toast({
-      title: "New Case Added",
-      description: `Case "${newCase.caseId}" is ready for details.`,
-    });
-    setActiveTab('casetracking');
+    resetDashboard();
+    setActiveTab('dashboard');
   };
 
   const handleStartInvestigation = () => {
