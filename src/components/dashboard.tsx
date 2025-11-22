@@ -195,7 +195,7 @@ const DashboardView = ({
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-4 w-full max-w-4xl">
             {files.map((file, index) => (
-              <div key={index} className="relative">
+              <div key={index} className="relative group">
                  <label className={`cursor-pointer aspect-video w-full rounded-lg flex flex-col items-center justify-center text-muted-foreground transition-colors ${
                   file ? 'bg-secondary/20 border-2 border-dashed border-green-500/50 filter grayscale opacity-60' : 'bg-secondary/30 hover:bg-secondary'
                  }`}>
@@ -203,7 +203,6 @@ const DashboardView = ({
                     <>
                        <CheckCircle size={24} className="text-green-500" />
                        <span className="text-xs mt-2 text-center break-all p-1 text-foreground">{file.name}</span>
-                       <button onClick={(e) => { e.preventDefault(); onRemoveFile(index); }} className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 z-10"><X size={12}/></button>
                     </>
                   ) : (
                     <>
@@ -213,6 +212,7 @@ const DashboardView = ({
                   )}
                   <input type="file" accept="video/*" className="hidden" onChange={(e) => { if(e.target.files) onFileChange(index, e.target.files[0]); }} disabled={!!file} />
                 </label>
+                <button onClick={(e) => { e.preventDefault(); onRemoveFile(index); }} className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12}/></button>
               </div>
             ))}
           </div>
@@ -672,16 +672,25 @@ const App = () => {
   const handleRemoveFile = (index: number) => {
     const newFiles = [...files];
     const removedFile = newFiles[index];
-    newFiles[index] = null;
-    setFiles(newFiles);
-
+    
     // If the removed file was the primary video, reset everything.
     if (videoFile && removedFile && videoFile.name === removedFile.name) {
-      resetDashboard();
        // Check if there are other files and make the first one the new primary
-      const nextFile = newFiles.find(f => f !== null) as File | null;
+      const nextFile = newFiles.filter((f, i) => i !== index && f !== null)[0] as File | null;
       if (nextFile) {
+        newFiles[index] = null;
+        setFiles(newFiles);
         handleVideoProcess(nextFile);
+      } else {
+        resetDashboard();
+      }
+    } else {
+      // If we are just removing a non-primary file, or removing a slot
+      if(files.length > 1) {
+        setFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
+      } else {
+        newFiles[index] = null;
+        setFiles(newFiles);
       }
     }
   };
