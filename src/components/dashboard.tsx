@@ -24,7 +24,9 @@ import {
   ArrowRight,
   LineChart,
   CaseSensitive,
-  PlusCircle
+  PlusCircle,
+  Trash2,
+  Edit
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
@@ -132,7 +134,7 @@ const VideoPlayer = ({ videoSrc, isPlaying, setIsPlaying, currentTime }: { video
   );
 };
 
-const DashboardView = ({ onUpload, processingStatus, onStartSearch, files, onFileChange, onRemoveFile }: { onUpload: any, processingStatus: string, onStartSearch: () => void, files: (File | null)[], onFileChange: (index: number, file: File) => void, onRemoveFile: (index: number) => void }) => (
+const DashboardView = ({ processingStatus, onStartSearch, files, onFileChange, onRemoveFile, onAddCamera }: { processingStatus: string, onStartSearch: () => void, files: (File | null)[], onFileChange: (index: number, file: File) => void, onRemoveFile: (index: number) => void, onAddCamera: () => void }) => (
   <div className="space-y-6 animate-in fade-in duration-500">
     <div className="bg-card border border-border border-dashed rounded-xl p-8 text-center hover:bg-secondary/50 transition-all min-h-[300px] flex flex-col items-center justify-center">
       
@@ -143,7 +145,7 @@ const DashboardView = ({ onUpload, processingStatus, onStartSearch, files, onFil
           </div>
           <h3 className="text-xl font-bold text-foreground mb-2">Upload CCTV Footage</h3>
           <p className="text-muted-foreground text-sm max-w-md mx-auto mb-6">
-            Select up to 5 video files (MP4, MOV) to begin analysis.
+            Select video files to begin analysis. Use the plus button to add more camera slots.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-4 w-full max-w-4xl">
             {files.map((file, index) => (
@@ -166,6 +168,10 @@ const DashboardView = ({ onUpload, processingStatus, onStartSearch, files, onFil
               </div>
             ))}
           </div>
+           <button onClick={onAddCamera} className="mt-6 flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors text-sm">
+            <PlusCircle size={16} />
+            Add Camera
+          </button>
         </>
       )}
 
@@ -427,7 +433,7 @@ const SimilarityView = ({ videoFile }: { videoFile: File | null }) => {
 };
 
 
-const CaseLinkingView = ({ cases, onLinkCases, linkingResults, isLinking, onUpdateCase }: { cases: any[], onLinkCases: () => void, linkingResults: any, isLinking: boolean, onUpdateCase: (caseId: string, updates: any) => void }) => (
+const CaseLinkingView = ({ cases, onLinkCases, linkingResults, isLinking, onUpdateCase, onRemoveCase }: { cases: any[], onLinkCases: () => void, linkingResults: any, isLinking: boolean, onUpdateCase: (caseId: string, updates: any) => void, onRemoveCase: (caseId: string) => void }) => (
   <div className="h-full flex flex-col">
     <div className="bg-card p-6 rounded-xl border border-border mb-6 flex items-center justify-between">
       <div>
@@ -450,12 +456,15 @@ const CaseLinkingView = ({ cases, onLinkCases, linkingResults, isLinking, onUpda
         <div className="p-4 space-y-4">
           {cases.map((c, i) => (
             <div key={c.caseId} className={`p-4 rounded-lg border ${i === 0 ? 'border-primary/50 bg-primary/10' : 'border-border bg-secondary'}`}>
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-start">
                 <input 
                    defaultValue={c.caseName}
                    onBlur={(e) => onUpdateCase(c.caseId, { caseName: e.target.value })}
                    className={`font-bold text-lg bg-transparent border-0 p-0 focus:ring-0 focus:outline-none w-full ${i===0 ? 'text-primary' : 'text-foreground'}`}
                 />
+                 <button onClick={() => onRemoveCase(c.caseId)} className="text-muted-foreground hover:text-destructive transition-colors ml-2">
+                    <Trash2 size={16} />
+                  </button>
               </div>
 
               <div className="text-xs text-muted-foreground mt-2 space-y-1">
@@ -543,6 +552,10 @@ const App = () => {
   
   const { toast } = useToast();
 
+  const handleAddCamera = () => {
+    setFiles(prevFiles => [...prevFiles, null]);
+  };
+
   const handleFileChange = (index: number, file: File) => {
     const newFiles = [...files];
     newFiles[index] = file;
@@ -555,7 +568,7 @@ const App = () => {
 
   const handleRemoveFile = (index: number) => {
     const newFiles = [...files];
-    newFiles[index] = null;
+    newFiles.splice(index, 1);
     setFiles(newFiles);
     if(index === 0) {
       setVideoSrc(null);
@@ -619,6 +632,14 @@ const App = () => {
     setCases(prevCases => prevCases.map(c => c.caseId === caseId ? { ...c, ...updates } : c));
   };
 
+  const handleRemoveCase = (caseId: string) => {
+    setCases(prevCases => prevCases.filter(c => c.caseId !== caseId));
+    toast({
+      title: "Case Removed",
+      description: `Case "${caseId}" has been deleted.`,
+    });
+  };
+
 
   return (
     <div className="flex h-screen bg-background text-foreground font-sans selection:bg-primary/30">
@@ -667,12 +688,12 @@ const App = () => {
         <main className="flex-1 overflow-auto p-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-secondary/30 via-background to-background">
           <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none' }}>
             <DashboardView 
-              onUpload={handleVideoProcess} 
               processingStatus={processingStatus} 
               onStartSearch={() => setActiveTab('semantic')}
               files={files}
               onFileChange={handleFileChange}
               onRemoveFile={handleRemoveFile}
+              onAddCamera={handleAddCamera}
             />
           </div>
           <div style={{ display: activeTab === 'semantic' ? 'block' : 'none' }}>
@@ -690,7 +711,7 @@ const App = () => {
             <SimilarityView videoFile={videoFile} />
           </div>
           <div style={{ display: activeTab === 'casetracking' ? 'block' : 'none' }}>
-            <CaseLinkingView cases={cases} onLinkCases={handleLinkCases} linkingResults={linkingResults} isLinking={isLinking} onUpdateCase={handleUpdateCase} />
+            <CaseLinkingView cases={cases} onLinkCases={handleLinkCases} linkingResults={linkingResults} isLinking={isLinking} onUpdateCase={handleUpdateCase} onRemoveCase={handleRemoveCase} />
           </div>
         </main>
       </div>
