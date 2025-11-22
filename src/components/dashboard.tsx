@@ -722,12 +722,12 @@ const App = () => {
       title: "Case Created",
       description: `New case "${newCase.caseId}" has been added.`,
     });
-    handleTabChange('casetracking');
+    handleTabChange('casetracking', true);
   };
 
   const handleNewCase = () => {
     resetDashboard();
-    handleTabChange('dashboard');
+    handleTabChange('dashboard', true);
   };
 
   const handleStartInvestigation = () => {
@@ -746,7 +746,7 @@ const App = () => {
       title: "Case Created",
       description: `New case "${newCase.caseName}" has been added.`,
     });
-    handleTabChange('semantic');
+    handleTabChange('semantic', true);
   };
 
   const handleUpdateCase = (caseId: string, updates: any) => {
@@ -761,9 +761,15 @@ const App = () => {
     });
   };
 
-  const handleTabChange = (newTab: string) => {
+  const handleTabChange = (newTab: string, newNavigationEvent = false) => {
     if (newTab !== activeTab) {
-      setTabHistory(prev => [...prev, newTab]);
+      if (newNavigationEvent) {
+        setTabHistory(prev => [...prev, newTab]);
+      } else {
+        const newHistory = [...tabHistory];
+        newHistory[newHistory.length - 1] = newTab;
+        setTabHistory(newHistory);
+      }
       setActiveTab(newTab);
     }
   };
@@ -794,10 +800,10 @@ const App = () => {
         </div>
 
         <nav className="flex-1">
-          <SidebarItem icon={Activity} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => handleTabChange('dashboard')} />
-          <SidebarItem icon={Search} label="Semantic Search" active={activeTab === 'semantic'} onClick={() => handleTabChange('semantic')} />
-          <SidebarItem icon={User} label="Similarity Search" active={activeTab === 'similarity'} onClick={() => handleTabChange('similarity')} />
-          <SidebarItem icon={CaseSensitive} label="Case Management" active={activeTab === 'casetracking'} onClick={() => handleTabChange('casetracking')} />
+          <SidebarItem icon={Activity} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => handleTabChange('dashboard', true)} />
+          <SidebarItem icon={Search} label="Semantic Search" active={activeTab === 'semantic'} onClick={() => handleTabChange('semantic', true)} />
+          <SidebarItem icon={User} label="Similarity Search" active={activeTab === 'similarity'} onClick={() => handleTabChange('similarity', true)} />
+          <SidebarItem icon={CaseSensitive} label="Case Management" active={activeTab === 'casetracking'} onClick={() => handleTabChange('casetracking', true)} />
         </nav>
 
         <div className="mt-auto space-y-4">
@@ -871,3 +877,5 @@ const App = () => {
 };
 
 export default App;
+
+    
