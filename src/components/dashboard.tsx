@@ -399,7 +399,7 @@ const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSea
                <Activity size={16} className="mr-2 text-primary" /> System Log
              </h4>
              <p className="text-xs text-muted-foreground leading-relaxed font-mono">
-               {videoFile ? `Loaded video: ${videoFile.name}.` : 'Waiting for video upload...'}
+               {videoFile ? `Loaded video for analysis: ${videoFile.name}. Ready for search queries.` : 'System ready. Please upload a video on the dashboard to begin.'}
              </p>
           </div>
         </div>
