@@ -299,7 +299,7 @@ const SemanticSearchView = ({ isSearching, setIsSearching, searchResults, setSea
   );
 };
 
-const SimilarityView = () => {
+const SimilarityView = ({ videoFile }: { videoFile: File | null }) => {
     const { toast } = useToast();
     const [suspectImg, setSuspectImg] = useState<string | null>(null);
     const [matches, setMatches] = useState<any[]>([]);
@@ -318,11 +318,16 @@ const SimilarityView = () => {
             toast({ variant: 'destructive', title: "Missing Input", description: "Please upload a suspect image." });
             return;
         }
+        if (!videoFile) {
+            toast({ variant: 'destructive', title: "Missing Video", description: "Please upload a video on the Dashboard tab first." });
+            return;
+        }
 
         setIsAnalyzing(true);
         setMatches([]);
         try {
-            const result = await similaritySearch({ referenceImage: suspectImg });
+            const videoDataUri = await fileToDataUri(videoFile);
+            const result = await similaritySearch({ referenceImage: suspectImg, videoDataUri });
             setMatches(result.results || []);
         } catch (err: any) {
             toast({ variant: 'destructive', title: "Analysis Failed", description: err.message });
@@ -374,6 +379,7 @@ const SimilarityView = () => {
                                         <span className="text-xs bg-green-900 text-green-300 px-2 py-1 rounded">{match.confidence}%</span>
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-2">Video: {match.videoName}</p>
+
                                 </div>
                             </div>
                         ))}
@@ -455,7 +461,7 @@ const App = () => {
             videoFile={videoFile}
           />;
         case 'similarity': 
-          return <SimilarityView />;
+          return <SimilarityView videoFile={videoFile} />;
         default: 
           return <DashboardView onUpload={handleVideoProcess} processingStatus={processingStatus} onStartSearch={() => setActiveTab('semantic')} files={files} onFileChange={handleFileChange} onRemoveFile={handleRemoveFile}/>;
       }
@@ -514,5 +520,3 @@ const App = () => {
 };
 
 export default App;
-
-    

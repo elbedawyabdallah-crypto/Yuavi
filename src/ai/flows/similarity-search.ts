@@ -14,7 +14,12 @@ const SimilaritySearchInputSchema = z.object({
   referenceImage: z
     .string()
     .describe(
-      'A reference image of the person or object to search for, as a data URI that must include a MIME type and use Base64 encoding. Expected format: \'data:<mimetype>;base64,<encoded_data>\'.' // Corrected typo here
+      "A reference image of the person or object to search for, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+    ),
+  videoDataUri: z
+    .string()
+    .describe(
+      "A CCTV video, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
 });
 export type SimilaritySearchInput = z.infer<typeof SimilaritySearchInputSchema>;
@@ -40,12 +45,13 @@ const similaritySearchPrompt = ai.definePrompt({
   output: {schema: SimilaritySearchOutputSchema},
   prompt: `You are an AI assistant designed to identify similar people or objects in a collection of CCTV videos based on a reference image.
 
-Given a reference image, analyze a database of video footage and return all instances where the person or object in the reference image appears. Consider clothing, body shape, and other visual cues to improve accuracy, especially when the face is unclear.
+Given a reference image and a video, analyze the video footage and return all instances where the person or object in the reference image appears. Consider clothing, body shape, and other visual cues to improve accuracy, especially when the face is unclear.
 
 Reference Image: {{media url=referenceImage}}
+Video: {{media url=videoDataUri}}
 
 Return the results in the following JSON format:
-{{outputSchema}}`,
+{{output}}`,
 });
 
 const similaritySearchFlow = ai.defineFlow(
@@ -59,4 +65,3 @@ const similaritySearchFlow = ai.defineFlow(
     return output!;
   }
 );
-
