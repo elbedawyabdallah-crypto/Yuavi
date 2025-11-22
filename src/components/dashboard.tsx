@@ -37,6 +37,17 @@ import { semanticVideoSearch } from '@/ai/flows/semantic-video-search';
 import { similaritySearch } from '@/ai/flows/similarity-search';
 import { linkCases } from '@/ai/flows/case-linking';
 import { format } from 'date-fns';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // --- Components ---
 
@@ -542,9 +553,28 @@ const CaseLinkingView = ({ cases, onLinkCases, linkingResults, isLinking, onUpda
                    onBlur={(e) => onUpdateCase(c.caseId, { caseName: e.target.value })}
                    className={`font-bold text-lg bg-transparent border-0 p-0 focus:ring-0 focus:outline-none w-full ${i===0 ? 'text-primary' : 'text-foreground'}`}
                 />
-                 <button onClick={() => onRemoveCase(c.caseId)} className="text-muted-foreground hover:text-destructive transition-colors ml-2">
-                    <Trash2 size={16} />
-                  </button>
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button className="text-muted-foreground hover:text-destructive transition-colors ml-2">
+                          <Trash2 size={16} />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete the case
+                          and all of its related data, including clues.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => onRemoveCase(c.caseId)}>
+                          Yes, delete case
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
               </div>
 
               <div className="text-xs text-muted-foreground mt-2 space-y-1">
@@ -662,6 +692,8 @@ const App = () => {
   useEffect(() => {
     if (cases.length > 0) {
       localStorage.setItem('insightwatch-cases', JSON.stringify(cases));
+    } else {
+      localStorage.removeItem('insightwatch-cases');
     }
   }, [cases]);
 
@@ -823,10 +855,6 @@ const App = () => {
     if (newTab !== activeTab) {
       if (newNavigationEvent) {
         setTabHistory(prev => [...prev, newTab]);
-      } else {
-        const newHistory = [...tabHistory];
-        newHistory[newHistory.length - 1] = newTab;
-        setTabHistory(newHistory);
       }
       setActiveTab(newTab);
     }
